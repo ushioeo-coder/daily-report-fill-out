@@ -34,6 +34,12 @@ export default async function AppLayout({
                 >
                   Excel出力
                 </Link>
+                <Link
+                  href="/admin/users"
+                  className="text-blue-600 hover:underline"
+                >
+                  ユーザー管理
+                </Link>
               </nav>
             )}
           </div>
