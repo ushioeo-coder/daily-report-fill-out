@@ -9,9 +9,9 @@
    C:\Users\sakurai\ﾌﾟﾛｼﾞｪｸﾄ\日報\
    ```
 
-2. このディレクトリにファイル名 `daily_report_template.xlsx` として配置:
+2. このディレクトリにファイル名 `日報ひな形.xlsx` として配置:
    ```
-   templates/daily_report_template.xlsx
+   templates/日報ひな形.xlsx
    ```
 
 3. git add → commit → push でデプロイに反映されます

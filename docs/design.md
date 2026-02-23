@@ -10,7 +10,7 @@
 | 編集可能範囲 | 当日から過去30日 |
 | セッション維持 | 最終操作から7日 |
 | Excelテンプレート原本 | `C:\Users\sakurai\ﾌﾟﾛｼﾞｪｸﾄ\日報\` (ローカルPC) |
-| Excelテンプレート配置先 | `templates/daily_report_template.xlsx` (リポジトリ管理) |
+| Excelテンプレート配置先 | `templates/日報ひな形.xlsx` (リポジトリ管理) |
 
 ---
 
@@ -196,7 +196,7 @@ return NextResponse.json(reports);
 ### テンプレート管理
 
 ```
-/templates/daily_report_template.xlsx   ← 管理者が配置・差替え
+/templates/日報ひな形.xlsx   ← 管理者が配置・差替え
 ```
 
 リポジトリにコミットし Vercel にデプロイされる。
@@ -210,7 +210,7 @@ admin が UI で期間・対象ユーザーを選択
 POST /api/reports/export  { userIds, from, to }
         ↓
 API Route (server)
-  1. テンプレ読込: fs.readFileSync("templates/daily_report_template.xlsx")
+  1. テンプレ読込: fs.readFileSync("templates/日報ひな形.xlsx")
   2. ExcelJS (or xlsx-populate) でワークブック解析
   3. DB からデータ取得 + 計算列算出
   4. テンプレのセルにデータ書込み
@@ -242,7 +242,7 @@ export async function POST(req: Request) {
 
   // テンプレ読込
   const wb = new ExcelJS.Workbook();
-  const templatePath = path.join(process.cwd(), "templates", "daily_report_template.xlsx");
+  const templatePath = path.join(process.cwd(), "templates", "日報ひな形.xlsx");
   await wb.xlsx.readFile(templatePath);
 
   const ws = wb.getWorksheet(1);
@@ -296,7 +296,7 @@ export async function POST(req: Request) {
 │   ├── calc.ts                      # 計算列 (server-only)
 │   └── constants.ts                 # BREAK_MINUTES, STANDARD_MINUTES
 ├── templates/
-│   └── daily_report_template.xlsx   # Excelテンプレート
+│   └── 日報ひな形.xlsx              # Excelテンプレート
 ├── supabase/
 │   └── migrations/
 │       └── 001_init.sql             # DDL + RLS + トリガー
