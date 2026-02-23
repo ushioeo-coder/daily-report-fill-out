@@ -9,7 +9,8 @@
 | 時刻の保存形式 | 整数 0–1439 (0:00=0, 23:59=1439) |
 | 編集可能範囲 | 当日から過去30日 |
 | セッション維持 | 最終操作から7日 |
-| Excelテンプレート保存場所 | `templates/daily_report_template.xlsx` (リポジトリ管理) |
+| Excelテンプレート原本 | `C:\Users\sakurai\ﾌﾟﾛｼﾞｪｸﾄ\日報\` (ローカルPC) |
+| Excelテンプレート配置先 | `templates/daily_report_template.xlsx` (リポジトリ管理) |
 
 ---
 
