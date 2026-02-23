@@ -1,0 +1,142 @@
+import { NextRequest, NextResponse } from "next/server";
+import ExcelJS from "exceljs";
+import path from "path";
+import { getSession } from "@/lib/session";
+import { supabase } from "@/lib/supabase";
+
+/**
+ * 分 (0–1439) → Excel のシリアル時刻 (日の端数) に変換。
+ * 例: 480分 (8:00) → 0.3333...
+ */
+function minutesToExcelTime(minutes: number): number {
+  return minutes / 1440;
+}
+
+/**
+ * POST /api/reports/export
+ * body: { user_id, year, month }
+ *
+ * admin のみ: 指定ユーザーの月報を Excel テンプレートに書き込んでダウンロード
+ *
+ * テンプレート: templates/日報ひな形.xlsx の「作業員配布用」シートを使用
+ *   - B8: 年, E8: 月, J9: 氏名
+ *   - Row 15〜45: 日付行
+ *   - G列: ③勤務開始時刻, H列: ④勤務終了時刻
+ */
+export async function POST(req: NextRequest) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "認証が必要です。" }, { status: 401 });
+  }
+  if (session.role !== "admin") {
+    return NextResponse.json({ error: "権限がありません。" }, { status: 403 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const { user_id, year, month } = body ?? {};
+
+  if (!user_id || typeof year !== "number" || typeof month !== "number") {
+    return NextResponse.json(
+      { error: "user_id, year, month は必須です。" },
+      { status: 400 }
+    );
+  }
+
+  // 対象ユーザー取得
+  const { data: user, error: userError } = await supabase
+    .from("users")
+    .select("name")
+    .eq("id", user_id)
+    .single();
+
+  if (userError || !user) {
+    return NextResponse.json(
+      { error: "ユーザーが見つかりません。" },
+      { status: 404 }
+    );
+  }
+
+  // 対象月の日報取得
+  const from = `${year}-${String(month).padStart(2, "0")}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const to = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+
+  const { data: reports, error: reportsError } = await supabase
+    .from("daily_reports")
+    .select("report_date, start_time, end_time, note")
+    .eq("user_id", user_id)
+    .gte("report_date", from)
+    .lte("report_date", to)
+    .order("report_date", { ascending: true });
+
+  if (reportsError) {
+    return NextResponse.json(
+      { error: "日報の取得に失敗しました。" },
+      { status: 500 }
+    );
+  }
+
+  // 日付→レポートのマップ作成
+  const reportMap = new Map<string, (typeof reports)[0]>();
+  for (const r of reports) {
+    reportMap.set(r.report_date, r);
+  }
+
+  // テンプレート読込
+  const wb = new ExcelJS.Workbook();
+  const templatePath = path.join(process.cwd(), "templates", "日報ひな形.xlsx");
+  await wb.xlsx.readFile(templatePath);
+
+  const ws = wb.getWorksheet("作業員配布用");
+  if (!ws) {
+    return NextResponse.json(
+      { error: "テンプレートに「作業員配布用」シートが見つかりません。" },
+      { status: 500 }
+    );
+  }
+
+  // 年月・氏名を設定
+  ws.getCell("B8").value = year;
+  ws.getCell("E8").value = month;
+  ws.getCell("J9").value = user.name;
+
+  // 日報データ書込み (Row 15 = 1日目)
+  const DATA_START_ROW = 15;
+  for (let day = 1; day <= lastDay; day++) {
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const report = reportMap.get(dateStr);
+    const row = DATA_START_ROW + day - 1;
+
+    if (report?.start_time != null) {
+      ws.getCell(row, 7).value = minutesToExcelTime(report.start_time); // G列: ③勤務開始
+    }
+    if (report?.end_time != null) {
+      ws.getCell(row, 8).value = minutesToExcelTime(report.end_time); // H列: ④勤務終了
+    }
+  }
+
+  // 不要なシートを削除 (作業員配布用のみ残す)
+  const sheetsToRemove: string[] = [];
+  wb.eachSheet((sheet) => {
+    if (sheet.name !== "作業員配布用") {
+      sheetsToRemove.push(sheet.name);
+    }
+  });
+  for (const name of sheetsToRemove) {
+    const sheet = wb.getWorksheet(name);
+    if (sheet) wb.removeWorksheet(sheet.id);
+  }
+
+  // バッファ生成
+  const buffer = await wb.xlsx.writeBuffer();
+
+  const fileName = `日報_${user.name}_${year}年${String(month).padStart(2, "0")}月.xlsx`;
+
+  return new NextResponse(buffer, {
+    headers: {
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+    },
+  });
+}
