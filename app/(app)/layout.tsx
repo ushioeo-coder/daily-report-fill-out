@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { LogoutButton } from "./logout-button";
 
@@ -19,6 +20,22 @@ export default async function AppLayout({
             <span className="text-sm text-gray-600">
               {session.name}({session.employee_id})
             </span>
+            {session.role === "admin" && (
+              <nav className="flex gap-3 text-sm">
+                <Link
+                  href="/admin/reports"
+                  className="text-blue-600 hover:underline"
+                >
+                  日報一覧
+                </Link>
+                <Link
+                  href="/admin/export"
+                  className="text-blue-600 hover:underline"
+                >
+                  Excel出力
+                </Link>
+              </nav>
+            )}
           </div>
           <LogoutButton />
         </div>
