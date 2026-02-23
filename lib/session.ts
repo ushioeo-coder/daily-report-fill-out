@@ -1,10 +1,10 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { supabase } from "@/lib/supabase";
-import { SESSION_TTL_MS } from "@/lib/constants";
+import { SESSION_TTL_MS, SESSION_COOKIE } from "@/lib/constants";
 import crypto from "crypto";
 
-export const SESSION_COOKIE = "session_token";
+export { SESSION_COOKIE };
 
 export type SessionUser = {
   id: string;

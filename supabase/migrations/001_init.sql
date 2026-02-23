@@ -41,9 +41,6 @@ CREATE TABLE sessions (
 -- 2. インデックス
 -- -------------------------
 
--- セッショントークンの検索高速化 (UNIQUE で自動作成されるが明示)
--- daily_reports の日付範囲検索
-CREATE INDEX idx_daily_reports_user_date ON daily_reports (user_id, report_date);
 -- 期限切れセッション削除用
 CREATE INDEX idx_sessions_expires_at ON sessions (expires_at);
 

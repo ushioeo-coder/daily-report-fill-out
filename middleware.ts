@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE } from "@/lib/session";
+import { SESSION_COOKIE } from "@/lib/constants";
 
 /** 認証不要のパス */
 const PUBLIC_PATHS = ["/login", "/api/auth/login"];

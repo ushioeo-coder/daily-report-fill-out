@@ -9,3 +9,6 @@ export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** 編集可能範囲 (日数): 当日から過去30日 */
 export const EDIT_WINDOW_DAYS = 30;
+
+/** セッション Cookie 名 */
+export const SESSION_COOKIE = "session_token";
