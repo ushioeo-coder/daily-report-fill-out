@@ -68,9 +68,10 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/reports
- * body: { report_date, start_time?, end_time?, note? }
+ * body: { report_date, start_time?, end_time?, note?, user_id? }
  *
  * 日報を新規作成 (upsert: 同一日付が既にあれば更新)
+ * admin は user_id を指定して他ユーザーの日報を保存可能
  */
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -87,6 +88,12 @@ export async function POST(req: NextRequest) {
   }
 
   const { report_date, start_time, end_time, note } = body;
+
+  // admin は user_id 指定可、user は自分のみ
+  let targetUserId = session.id;
+  if (body.user_id && session.role === "admin") {
+    targetUserId = body.user_id;
+  }
 
   // 30日編集制限チェック (admin はスキップ)
   if (session.role !== "admin") {
@@ -120,7 +127,7 @@ export async function POST(req: NextRequest) {
     .from("daily_reports")
     .upsert(
       {
-        user_id: session.id,
+        user_id: targetUserId,
         report_date,
         start_time: start_time ?? null,
         end_time: end_time ?? null,
