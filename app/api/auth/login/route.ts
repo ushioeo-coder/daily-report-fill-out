@@ -27,6 +27,15 @@ export async function POST(req: NextRequest) {
     .eq("employee_id", employee_id.trim())
     .single();
 
+  // DB 接続エラーの場合はサーバーエラーとして返す
+  if (error && error.code !== "PGRST116") {
+    console.error("Supabase error:", error);
+    return NextResponse.json(
+      { error: "サーバーエラーが発生しました。しばらく経ってからお試しください。" },
+      { status: 500 }
+    );
+  }
+
   // ユーザー不存在 or パスワード不一致を区別せず同一メッセージで返す (ユーザー列挙防止)
   const isValid =
     !error &&
