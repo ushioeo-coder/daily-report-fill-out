@@ -4,7 +4,7 @@ import { SESSION_COOKIE } from "@/lib/constants";
 /** 認証不要のパス */
 const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // 公開パスはスルー
@@ -20,8 +20,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // トークンの検証は各 Route Handler / Page の getSession() に委ねる。
-  // middleware では cookie の存在チェックのみ行い、DB アクセスを省く。
-  // (Edge Runtime では DB 直接アクセスが難しいため)
+  // proxy では cookie の存在チェックのみ行い、DB アクセスを省く。
   return NextResponse.next();
 }
 

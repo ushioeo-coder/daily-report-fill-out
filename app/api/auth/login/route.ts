@@ -27,11 +27,9 @@ export async function POST(req: NextRequest) {
     .eq("employee_id", employee_id.trim())
     .single();
 
-  console.log("[LOGIN DEBUG] employee_id:", employee_id.trim(), "error:", error, "user found:", !!user);
-
   // DB 接続エラーの場合はサーバーエラーとして返す
   if (error && error.code !== "PGRST116") {
-    console.error("Supabase error:", error);
+    console.error("Login DB error:", error);
     return NextResponse.json(
       { error: "サーバーエラーが発生しました。しばらく経ってからお試しください。" },
       { status: 500 }
@@ -40,9 +38,8 @@ export async function POST(req: NextRequest) {
 
   // ユーザー不存在 or パスワード不一致を区別せず同一メッセージで返す (ユーザー列挙防止)
   const bcryptResult = !error && user
-    ? await bcrypt.compare(password, user.password_hash).catch((e: Error) => { console.error("[LOGIN DEBUG] bcrypt error:", e); return false; })
+    ? await bcrypt.compare(password, user.password_hash).catch(() => false)
     : false;
-  console.log("[LOGIN DEBUG] bcryptResult:", bcryptResult, "password_hash prefix:", user?.password_hash?.substring(0, 20));
   const isValid = !error && user && bcryptResult;
 
   if (!isValid) {
