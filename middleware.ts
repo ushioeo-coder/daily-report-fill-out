@@ -33,6 +33,6 @@ export const config = {
      * - _next/image (画像最適化)
      * - favicon.ico
      */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.json).*)",
   ],
 };
