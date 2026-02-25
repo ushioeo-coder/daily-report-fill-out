@@ -1,8 +1,8 @@
-const CACHE_NAME = 'daily-report-v1';
+const CACHE_NAME = 'daily-report-v2';
 
 // キャッシュするstaticアセット
+// NOTE: '/' は未ログイン時に /reports→/login へリダイレクトされるためキャッシュ対象から除外
 const STATIC_ASSETS = [
-  '/',
   '/login',
 ];
 

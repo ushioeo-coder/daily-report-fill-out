@@ -27,11 +27,6 @@ export async function POST(req: NextRequest) {
     .eq("employee_id", employee_id.trim())
     .single();
 
-  // [LOGIN DEBUG] 認証診断ログ
-  console.log("[LOGIN DEBUG] employee_id received:", JSON.stringify(employee_id));
-  console.log("[LOGIN DEBUG] user found:", user ? user.employee_id : "NOT FOUND");
-  console.log("[LOGIN DEBUG] db error:", error ? JSON.stringify(error) : "none");
-
   // DB 接続エラーの場合はサーバーエラーとして返す
   if (error && error.code !== "PGRST116") {
     console.error("Login DB error:", error);
@@ -45,10 +40,6 @@ export async function POST(req: NextRequest) {
   const bcryptResult = !error && user
     ? await bcrypt.compare(password, user.password_hash).catch(() => false)
     : false;
-
-  // [LOGIN DEBUG] bcrypt結果
-  console.log("[LOGIN DEBUG] bcryptResult:", bcryptResult);
-
   const isValid = !error && user && bcryptResult;
 
   if (!isValid) {
