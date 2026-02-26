@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
-import { computeDerivedColumns } from "@/lib/calc";
+import { computeDerivedColumns, RawReport } from "@/lib/calc";
 import { EDIT_WINDOW_DAYS } from "@/lib/constants";
 
 /**
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
 
   // admin には計算列を付与
   if (session.role === "admin") {
-    const enriched = reports.map((r) => ({
+    const enriched = reports.map((r: RawReport & Record<string, unknown>) => ({
       ...r,
       ...computeDerivedColumns(r),
     }));
