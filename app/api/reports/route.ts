@@ -4,6 +4,10 @@ import { supabase } from "@/lib/supabase";
 import { computeDerivedColumns, RawReport } from "@/lib/calc";
 import { EDIT_WINDOW_DAYS } from "@/lib/constants";
 
+const DATE_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * GET /api/reports?from=YYYY-MM-DD&to=YYYY-MM-DD[&user_id=uuid]
  *
@@ -28,6 +32,13 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  if (!DATE_RE.test(from) || !DATE_RE.test(to)) {
+    return NextResponse.json(
+      { error: "from / to は YYYY-MM-DD 形式で指定してください。" },
+      { status: 400 }
+    );
+  }
+
   let query = supabase
     .from("daily_reports")
     .select("id, user_id, report_date, start_time, end_time, note, created_at, updated_at")
@@ -38,6 +49,12 @@ export async function GET(req: NextRequest) {
   if (session.role === "admin") {
     const userId = searchParams.get("user_id");
     if (userId) {
+      if (!UUID_RE.test(userId)) {
+        return NextResponse.json(
+          { error: "user_id の形式が不正です。" },
+          { status: 400 }
+        );
+      }
       query = query.eq("user_id", userId);
     }
   } else {
@@ -89,9 +106,22 @@ export async function POST(req: NextRequest) {
 
   const { report_date, start_time, end_time, note } = body;
 
+  if (!DATE_RE.test(report_date)) {
+    return NextResponse.json(
+      { error: "report_date は YYYY-MM-DD 形式で指定してください。" },
+      { status: 400 }
+    );
+  }
+
   // admin は user_id 指定可、user は自分のみ
   let targetUserId = session.id;
   if (body.user_id && session.role === "admin") {
+    if (!UUID_RE.test(body.user_id)) {
+      return NextResponse.json(
+        { error: "user_id の形式が不正です。" },
+        { status: 400 }
+      );
+    }
     targetUserId = body.user_id;
   }
 
