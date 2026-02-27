@@ -6,7 +6,7 @@
 -- 1. テーブル作成
 -- -------------------------
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   employee_id   char(4)     UNIQUE NOT NULL,
   password_hash text        NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE users (
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE daily_reports (
+CREATE TABLE IF NOT EXISTS daily_reports (
   id          uuid      PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     uuid      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   report_date date      NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE daily_reports (
   UNIQUE (user_id, report_date)
 );
 
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    uuid        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token      text        UNIQUE NOT NULL,
@@ -42,7 +42,7 @@ CREATE TABLE sessions (
 -- -------------------------
 
 -- 期限切れセッション削除用
-CREATE INDEX idx_sessions_expires_at ON sessions (expires_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions (expires_at);
 
 -- -------------------------
 -- 3. updated_at 自動更新トリガー
@@ -56,6 +56,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_set_updated_at ON daily_reports;
 CREATE TRIGGER trg_set_updated_at
   BEFORE UPDATE ON daily_reports
   FOR EACH ROW
@@ -83,6 +84,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_check_edit_window ON daily_reports;
 CREATE TRIGGER trg_check_edit_window
   BEFORE UPDATE ON daily_reports
   FOR EACH ROW
@@ -96,25 +98,31 @@ CREATE TRIGGER trg_check_edit_window
 
 ALTER TABLE daily_reports ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "user_own_reports" ON daily_reports
-  FOR ALL
-  USING (
-    user_id = current_setting('app.current_user_id', true)::uuid
-    OR current_setting('app.current_user_role', true) = 'admin'
-  )
-  WITH CHECK (
-    user_id = current_setting('app.current_user_id', true)::uuid
-    OR current_setting('app.current_user_role', true) = 'admin'
-  );
+DO $$ BEGIN
+  CREATE POLICY "user_own_reports" ON daily_reports
+    FOR ALL
+    USING (
+      user_id = current_setting('app.current_user_id', true)::uuid
+      OR current_setting('app.current_user_role', true) = 'admin'
+    )
+    WITH CHECK (
+      user_id = current_setting('app.current_user_id', true)::uuid
+      OR current_setting('app.current_user_role', true) = 'admin'
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "user_own_profile" ON users
-  FOR SELECT
-  USING (
-    id = current_setting('app.current_user_id', true)::uuid
-    OR current_setting('app.current_user_role', true) = 'admin'
-  );
+DO $$ BEGIN
+  CREATE POLICY "user_own_profile" ON users
+    FOR SELECT
+    USING (
+      id = current_setting('app.current_user_id', true)::uuid
+      OR current_setting('app.current_user_role', true) = 'admin'
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- sessions は API Route 経由のみアクセスするため RLS は不要
 -- (service_role key でバイパスされる前提)
