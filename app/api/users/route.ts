@@ -3,6 +3,9 @@ import bcrypt from "bcrypt";
 import { getSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * GET /api/users
  * admin のみ: 全ユーザー一覧を返す
@@ -116,6 +119,13 @@ export async function DELETE(req: NextRequest) {
   if (!userId) {
     return NextResponse.json(
       { error: "削除対象の id は必須です。" },
+      { status: 400 }
+    );
+  }
+
+  if (!UUID_RE.test(userId)) {
+    return NextResponse.json(
+      { error: "id の形式が不正です。" },
       { status: 400 }
     );
   }

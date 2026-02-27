@@ -16,6 +16,9 @@ export function hhmmToMinutes(hhmm: string): number | null {
 
   const h = parseInt(match[1], 10);
   const m = parseInt(match[2], 10);
+
+  if (m > 59) return null;
+
   const total = h * 60 + m;
 
   if (total < 0 || total > 1439) return null;

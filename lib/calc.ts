@@ -21,6 +21,9 @@ export function computeDerivedColumns(report: RawReport): DerivedColumns {
   }
 
   const worked = report.end_time - report.start_time - BREAK_MINUTES;
+  if (worked < 0) {
+    return { actual_work_minutes: null, overtime_minutes: null };
+  }
   const overtime = Math.max(worked - STANDARD_MINUTES, 0);
 
   return {

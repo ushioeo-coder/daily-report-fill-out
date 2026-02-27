@@ -140,15 +140,29 @@ export async function POST(req: NextRequest) {
   }
 
   // start_time / end_time のバリデーション
-  if (start_time != null && (typeof start_time !== "number" || start_time < 0 || start_time > 1439)) {
+  if (start_time != null && (typeof start_time !== "number" || !Number.isInteger(start_time) || start_time < 0 || start_time > 1439)) {
     return NextResponse.json(
       { error: "start_time は 0〜1439 の整数で指定してください。" },
       { status: 400 }
     );
   }
-  if (end_time != null && (typeof end_time !== "number" || end_time < 0 || end_time > 1439)) {
+  if (end_time != null && (typeof end_time !== "number" || !Number.isInteger(end_time) || end_time < 0 || end_time > 1439)) {
     return NextResponse.json(
       { error: "end_time は 0〜1439 の整数で指定してください。" },
+      { status: 400 }
+    );
+  }
+  if (start_time != null && end_time != null && start_time >= end_time) {
+    return NextResponse.json(
+      { error: "end_time は start_time より後の時刻を指定してください。" },
+      { status: 400 }
+    );
+  }
+
+  // note のバリデーション
+  if (note != null && (typeof note !== "string" || note.length > 1000)) {
+    return NextResponse.json(
+      { error: "note は 1000 文字以内で入力してください。" },
       { status: 400 }
     );
   }

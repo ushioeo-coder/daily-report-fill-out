@@ -4,6 +4,9 @@ import path from "path";
 import { getSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * 分 (0–1439) → Excel のシリアル時刻 (日の端数) に変換。
  * 例: 480分 (8:00) → 0.3333...
@@ -38,6 +41,27 @@ export async function POST(req: NextRequest) {
   if (!user_id || typeof year !== "number" || typeof month !== "number") {
     return NextResponse.json(
       { error: "user_id, year, month は必須です。" },
+      { status: 400 }
+    );
+  }
+
+  if (typeof user_id !== "string" || !UUID_RE.test(user_id)) {
+    return NextResponse.json(
+      { error: "user_id の形式が不正です。" },
+      { status: 400 }
+    );
+  }
+
+  if (!Number.isInteger(year) || year < 1900 || year > 2100) {
+    return NextResponse.json(
+      { error: "year は 1900〜2100 の整数で指定してください。" },
+      { status: 400 }
+    );
+  }
+
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    return NextResponse.json(
+      { error: "month は 1〜12 の整数で指定してください。" },
       { status: 400 }
     );
   }
@@ -85,7 +109,14 @@ export async function POST(req: NextRequest) {
   // テンプレート読込
   const wb = new ExcelJS.Workbook();
   const templatePath = path.join(process.cwd(), "templates", "日報ひな形.xlsx");
-  await wb.xlsx.readFile(templatePath);
+  try {
+    await wb.xlsx.readFile(templatePath);
+  } catch {
+    return NextResponse.json(
+      { error: "Excel テンプレートの読み込みに失敗しました。" },
+      { status: 500 }
+    );
+  }
 
   const ws = wb.getWorksheet("作業員配布用");
   if (!ws) {
