@@ -101,6 +101,25 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function handleForceLogout(user: User) {
+    if (!confirm(`${user.employee_id} - ${user.name} を強制ログアウトしますか？\n現在ログイン中のセッションがすべて削除されます。`)) {
+      return;
+    }
+
+    setMessage("");
+    setError("");
+
+    const res = await fetch(`/api/users/sessions?id=${user.id}`, { method: "DELETE" });
+
+    if (!res.ok) {
+      const data = await res.json();
+      setError(data.error ?? "強制ログアウトに失敗しました。");
+      return;
+    }
+
+    setMessage(`${user.employee_id} - ${user.name} を強制ログアウトしました。`);
+  }
+
   async function handleDelete(user: User) {
     if (!confirm(`${user.employee_id} - ${user.name} を削除しますか？\n関連する日報データもすべて削除されます。`)) {
       return;
@@ -214,6 +233,12 @@ export default function AdminUsersPage() {
                     className="rounded border border-blue-300 px-3 py-1 text-xs text-blue-600 hover:bg-blue-50"
                   >
                     PW変更
+                  </button>
+                  <button
+                    onClick={() => handleForceLogout(u)}
+                    className="rounded border border-orange-300 px-3 py-1 text-xs text-orange-600 hover:bg-orange-50"
+                  >
+                    強制ログアウト
                   </button>
                   <button
                     onClick={() => handleDelete(u)}

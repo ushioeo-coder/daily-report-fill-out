@@ -75,6 +75,11 @@ export async function deleteSession(token: string): Promise<void> {
   await supabase.from("sessions").delete().eq("token", token);
 }
 
+/** 指定ユーザーの全セッションを削除 (強制ログアウト) */
+export async function deleteUserSessions(userId: string): Promise<void> {
+  await supabase.from("sessions").delete().eq("user_id", userId);
+}
+
 /** 期限切れセッションを一括削除 (定期メンテナンス用) */
 export async function purgeExpiredSessions(): Promise<void> {
   await supabase
