@@ -293,6 +293,9 @@ class QueryBuilder implements PromiseLike<{ data: any; error: any }> {
   }
 
   private async _execUpdate(): Promise<{ data: any; error: any }> {
+    if (this._filters.length === 0) {
+      throw new Error("UPDATE requires at least one filter condition to prevent accidental full-table update");
+    }
     const data = this._payload!;
     const keys = Object.keys(data);
     const values = Object.values(data);
@@ -312,6 +315,9 @@ class QueryBuilder implements PromiseLike<{ data: any; error: any }> {
   }
 
   private async _execDelete(): Promise<{ data: any; error: any }> {
+    if (this._filters.length === 0) {
+      throw new Error("DELETE requires at least one filter condition to prevent accidental full-table deletion");
+    }
     const where = this._buildWhere();
     const sql = `DELETE FROM ${this._table} ${where.text}`;
     await pool.query(sql, where.values);
