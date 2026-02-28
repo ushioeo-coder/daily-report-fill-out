@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { LogoutButton } from "./logout-button";
+import { PasswordChangeButton } from "./password-change-button";
 
 export default async function AppLayout({
   children,
@@ -43,7 +44,10 @@ export default async function AppLayout({
               </nav>
             )}
           </div>
-          <LogoutButton />
+          <div className="flex items-center gap-3">
+            <PasswordChangeButton userId={session.id} userRole={session.role} />
+            <LogoutButton />
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
