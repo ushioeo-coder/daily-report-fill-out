@@ -1,6 +1,6 @@
 /**
- * Neon (PostgreSQL) マイグレーションスクリプト
- * Vercel ビルド時に自動実行される
+ * PostgreSQL マイグレーションスクリプト
+ * ビルド時に自動実行される (npm run build)
  */
 
 const { Client } = require('pg');
@@ -15,7 +15,7 @@ async function migrate() {
 
   const client = new Client({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL.includes('neon.tech') ? { rejectUnauthorized: false } : false,
+    ssl: /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL) ? false : { rejectUnauthorized: false },
   });
 
   try {
