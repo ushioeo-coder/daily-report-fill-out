@@ -146,16 +146,16 @@ Railway (Next.js アプリ ~$5/月)  →  Supabase Free (PostgreSQL DB $0/月)
 2. 新規プロジェクトを作成（リージョン: Northeast Asia (Tokyo) 推奨）
 3. **Settings → Database → Connection string** から接続文字列を取得:
    ```
-   postgresql://postgres.[project-ref]:[password]@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres
+   postgresql://postgres.tdfogrvahdcjtndgjebw:[YOUR-PASSWORD]@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres
    ```
-   ※ "Display connection pooler" を ON にし、Mode は "Transaction" を選択
+   ※ Method を "Session pooler" に切り替えて表示される接続文字列を使用
 
 ### Step 2: Railway デプロイ
 1. https://railway.app でアカウント作成
 2. **New Project → Deploy from GitHub repo** でこのリポジトリを接続
 3. **Variables** で以下を設定:
    ```
-   DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres
+   DATABASE_URL=postgresql://postgres.tdfogrvahdcjtndgjebw:[YOUR-PASSWORD]@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres
    NODE_ENV=production
    ```
 4. **Settings → Networking → Generate Domain** でURLを発行
