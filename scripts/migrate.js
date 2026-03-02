@@ -9,21 +9,40 @@ const path = require('path');
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 3000;
+const CONNECTION_TIMEOUT_MS = 10000;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function createClient() {
+function getDatabaseUrl() {
+  // マイグレーションには DIRECT_URL (Supabase直接接続) を優先。
+  // なければ DATABASE_URL (pooler 経由) を使用。
+  return process.env.DIRECT_URL || process.env.DATABASE_URL;
+}
+
+function maskUrl(url) {
+  try {
+    const u = new URL(url);
+    u.password = '***';
+    return u.toString();
+  } catch {
+    return '(invalid URL)';
+  }
+}
+
+function createClient(url) {
+  const isLocal = /localhost|127\.0\.0\.1/.test(url);
   return new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: /localhost|127\.0\.0\.1|\.railway\.internal/.test(process.env.DATABASE_URL) ? false : { rejectUnauthorized: false },
+    connectionString: url,
+    ssl: isLocal ? false : { rejectUnauthorized: false },
+    connectionTimeoutMillis: CONNECTION_TIMEOUT_MS,
   });
 }
 
-async function connectWithRetry() {
+async function connectWithRetry(url) {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const client = createClient();
+    const client = createClient(url);
     try {
       await client.connect();
       console.log('データベースに接続しました');
@@ -31,8 +50,9 @@ async function connectWithRetry() {
     } catch (err) {
       try { await client.end(); } catch (_) {}
       if (attempt < MAX_RETRIES) {
-        console.log(`DB接続失敗 (${attempt}/${MAX_RETRIES}): ${err.message} — ${RETRY_DELAY_MS}ms後にリトライ...`);
-        await sleep(RETRY_DELAY_MS);
+        const delay = RETRY_DELAY_MS * attempt; // exponential-ish backoff
+        console.log(`DB接続失敗 (${attempt}/${MAX_RETRIES}): ${err.message} — ${delay}ms後にリトライ...`);
+        await sleep(delay);
       } else {
         throw err;
       }
@@ -41,14 +61,17 @@ async function connectWithRetry() {
 }
 
 async function migrate() {
-  if (!process.env.DATABASE_URL) {
+  const url = getDatabaseUrl();
+  if (!url) {
     console.log('DATABASE_URL が未設定のためマイグレーションをスキップします');
     return;
   }
 
+  console.log(`マイグレーション接続先: ${maskUrl(url)}`);
+
   let client;
   try {
-    client = await connectWithRetry();
+    client = await connectWithRetry(url);
 
     // マイグレーション管理テーブル
     await client.query(`
@@ -87,7 +110,10 @@ async function migrate() {
     console.log('マイグレーション完了');
   } catch (err) {
     console.error('マイグレーションエラー:', err.message);
-    process.exit(1);
+    // テーブルが既に Supabase に存在する場合、接続失敗でもサーバー起動を続行する。
+    // 致命的な接続障害の場合はアプリ側 (pg.Pool) で再度エラーになるが、
+    // 一時的な接続不安定ならサーバー起動後に回復する可能性がある。
+    console.log('⚠ マイグレーションに失敗しましたが、サーバー起動を続行します');
   } finally {
     if (client) {
       try { await client.end(); } catch (_) {}

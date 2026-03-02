@@ -5,10 +5,12 @@ const DATABASE_URL =
   process.env.DATABASE_URL ||
   "postgresql://app_user:app_password@localhost:5432/daily_report";
 
-const isLocal = /localhost|127\.0\.0\.1|\.railway\.internal/.test(DATABASE_URL);
+const isLocal = /localhost|127\.0\.0\.1/.test(DATABASE_URL);
 const pool = new pg.Pool({
   connectionString: DATABASE_URL,
   ssl: isLocal ? false : { rejectUnauthorized: false },
+  connectionTimeoutMillis: 10000,
+  max: 5,
 });
 
 // ---------------------------------------------------------------------------
