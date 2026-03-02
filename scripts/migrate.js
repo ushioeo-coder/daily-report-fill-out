@@ -1,6 +1,6 @@
 /**
  * PostgreSQL マイグレーションスクリプト
- * ビルド時に自動実行される (npm run build)
+ * アプリ起動時に自動実行される (npm start)
  */
 
 const { Client } = require('pg');
@@ -13,6 +13,7 @@ async function migrate() {
     return;
   }
 
+  let connected = false;
   const client = new Client({
     connectionString: process.env.DATABASE_URL,
     ssl: /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL) ? false : { rejectUnauthorized: false },
@@ -20,6 +21,7 @@ async function migrate() {
 
   try {
     await client.connect();
+    connected = true;
     console.log('データベースに接続しました');
 
     // マイグレーション管理テーブル
@@ -59,9 +61,10 @@ async function migrate() {
     console.log('マイグレーション完了');
   } catch (err) {
     console.error('マイグレーションエラー:', err.message);
-    console.log('ビルドを継続します（マイグレーションはアプリ起動時に再試行されます）');
   } finally {
-    await client.end();
+    if (connected) {
+      try { await client.end(); } catch (_) {}
+    }
   }
 }
 

@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/migrate.js && next build && cp -r public .next/standalone/public && cp -r .next/static .next/standalone/.next/static",
-    "start": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
+    "build": "next build && cp -r public .next/standalone/public && cp -r .next/static .next/standalone/.next/static",
+    "start": "node scripts/migrate.js && HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "lint": "eslint",
     "setup": "sudo service postgresql start && next dev"
   },
