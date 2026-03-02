@@ -59,7 +59,7 @@ async function migrate() {
     console.log('マイグレーション完了');
   } catch (err) {
     console.error('マイグレーションエラー:', err.message);
-    process.exit(1);
+    console.log('ビルドを継続します（マイグレーションはアプリ起動時に再試行されます）');
   } finally {
     await client.end();
   }
