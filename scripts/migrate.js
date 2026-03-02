@@ -1,23 +1,22 @@
 /**
  * PostgreSQL マイグレーションスクリプト
  * アプリ起動時に自動実行される (npm start)
+ * テーブルが既に存在する場合は接続失敗でもサーバー起動を続行する。
  */
 
 const { Client } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-const MAX_RETRIES = 5;
-const RETRY_DELAY_MS = 3000;
-const CONNECTION_TIMEOUT_MS = 10000;
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 2000;
+const CONNECTION_TIMEOUT_MS = 5000;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function getDatabaseUrl() {
-  // マイグレーションには DIRECT_URL (Supabase直接接続) を優先。
-  // なければ DATABASE_URL (pooler 経由) を使用。
   return process.env.DIRECT_URL || process.env.DATABASE_URL;
 }
 
@@ -50,9 +49,8 @@ async function connectWithRetry(url) {
     } catch (err) {
       try { await client.end(); } catch (_) {}
       if (attempt < MAX_RETRIES) {
-        const delay = RETRY_DELAY_MS * attempt; // exponential-ish backoff
-        console.log(`DB接続失敗 (${attempt}/${MAX_RETRIES}): ${err.message} — ${delay}ms後にリトライ...`);
-        await sleep(delay);
+        console.log(`DB接続失敗 (${attempt}/${MAX_RETRIES}): ${err.message} — ${RETRY_DELAY_MS}ms後にリトライ...`);
+        await sleep(RETRY_DELAY_MS);
       } else {
         throw err;
       }
@@ -68,6 +66,7 @@ async function migrate() {
   }
 
   console.log(`マイグレーション接続先: ${maskUrl(url)}`);
+  console.log(`PORT=${process.env.PORT || '(未設定)'}, NODE_ENV=${process.env.NODE_ENV || '(未設定)'}`);
 
   let client;
   try {
@@ -110,9 +109,6 @@ async function migrate() {
     console.log('マイグレーション完了');
   } catch (err) {
     console.error('マイグレーションエラー:', err.message);
-    // テーブルが既に Supabase に存在する場合、接続失敗でもサーバー起動を続行する。
-    // 致命的な接続障害の場合はアプリ側 (pg.Pool) で再度エラーになるが、
-    // 一時的な接続不安定ならサーバー起動後に回復する可能性がある。
     console.log('⚠ マイグレーションに失敗しましたが、サーバー起動を続行します');
   } finally {
     if (client) {

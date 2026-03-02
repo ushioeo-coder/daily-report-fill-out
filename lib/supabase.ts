@@ -10,7 +10,12 @@ const pool = new pg.Pool({
   connectionString: DATABASE_URL,
   ssl: isLocal ? false : { rejectUnauthorized: false },
   connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
   max: 5,
+});
+
+pool.on('error', (err) => {
+  console.error('pg Pool エラー:', err.message);
 });
 
 // ---------------------------------------------------------------------------
