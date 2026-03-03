@@ -30,7 +30,6 @@ COPY --from=builder /app/supabase ./supabase
 # Excel テンプレート
 COPY --from=builder /app/templates ./templates
 
-# Railway が PORT を注入する。未設定時は 3000 をフォールバック
-EXPOSE 3000
+# Railway が PORT 環境変数でポートを注入する（EXPOSE は指定しない）
 
 CMD ["sh", "-c", "node scripts/migrate.js; node server.js"]
