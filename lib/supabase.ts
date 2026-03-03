@@ -9,6 +9,16 @@ const isLocal = /localhost|127\.0\.0\.1/.test(DATABASE_URL);
 const pool = new pg.Pool({
   connectionString: DATABASE_URL,
   ssl: isLocal ? false : { rejectUnauthorized: false },
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 5,
+  // DB接続後にクエリが30秒以上かかったら自動キャンセル
+  statement_timeout: 30000,
+  query_timeout: 30000,
+});
+
+pool.on('error', (err) => {
+  console.error('pg Pool エラー:', err.message);
 });
 
 // ---------------------------------------------------------------------------

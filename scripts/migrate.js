@@ -1,26 +1,76 @@
 /**
  * PostgreSQL マイグレーションスクリプト
- * ビルド時に自動実行される (npm run build)
+ * アプリ起動時に自動実行される (npm start)
+ * テーブルが既に存在する場合は接続失敗でもサーバー起動を続行する。
  */
 
 const { Client } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 2000;
+const CONNECTION_TIMEOUT_MS = 5000;
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getDatabaseUrl() {
+  return process.env.DIRECT_URL || process.env.DATABASE_URL;
+}
+
+function maskUrl(url) {
+  try {
+    const u = new URL(url);
+    u.password = '***';
+    return u.toString();
+  } catch {
+    return '(invalid URL)';
+  }
+}
+
+function createClient(url) {
+  const isLocal = /localhost|127\.0\.0\.1/.test(url);
+  return new Client({
+    connectionString: url,
+    ssl: isLocal ? false : { rejectUnauthorized: false },
+    connectionTimeoutMillis: CONNECTION_TIMEOUT_MS,
+  });
+}
+
+async function connectWithRetry(url) {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const client = createClient(url);
+    try {
+      await client.connect();
+      console.log('データベースに接続しました');
+      return client;
+    } catch (err) {
+      try { await client.end(); } catch (_) {}
+      if (attempt < MAX_RETRIES) {
+        console.log(`DB接続失敗 (${attempt}/${MAX_RETRIES}): ${err.message} — ${RETRY_DELAY_MS}ms後にリトライ...`);
+        await sleep(RETRY_DELAY_MS);
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
 async function migrate() {
-  if (!process.env.DATABASE_URL) {
+  const url = getDatabaseUrl();
+  if (!url) {
     console.log('DATABASE_URL が未設定のためマイグレーションをスキップします');
     return;
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL) ? false : { rejectUnauthorized: false },
-  });
+  console.log(`マイグレーション接続先: ${maskUrl(url)}`);
+  console.log(`PORT=${process.env.PORT || '(未設定)'}, NODE_ENV=${process.env.NODE_ENV || '(未設定)'}`);
 
+  let client;
   try {
-    await client.connect();
-    console.log('データベースに接続しました');
+    client = await connectWithRetry(url);
 
     // マイグレーション管理テーブル
     await client.query(`
@@ -59,9 +109,11 @@ async function migrate() {
     console.log('マイグレーション完了');
   } catch (err) {
     console.error('マイグレーションエラー:', err.message);
-    process.exit(1);
+    console.log('⚠ マイグレーションに失敗しましたが、サーバー起動を続行します');
   } finally {
-    await client.end();
+    if (client) {
+      try { await client.end(); } catch (_) {}
+    }
   }
 }
 
