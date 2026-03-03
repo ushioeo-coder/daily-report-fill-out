@@ -1,2 +1,5 @@
+[build]
+buildCommand = "npm ci && npm run build"
+
 [deploy]
-startCommand = "npm start"
+startCommand = "node scripts/migrate.js; HOSTNAME=0.0.0.0 node .next/standalone/server.js"
