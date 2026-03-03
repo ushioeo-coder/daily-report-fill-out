@@ -4,7 +4,7 @@ import { SESSION_COOKIE } from "@/lib/constants";
 /** 認証不要のパス */
 const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // 公開パスはスルー
@@ -20,7 +20,7 @@ export function middleware(req: NextRequest) {
   }
 
   // トークンの検証は各 Route Handler / Page の getSession() に委ねる。
-  // middleware では cookie の存在チェックのみ行い、DB アクセスを省く。
+  // proxy では cookie の存在チェックのみ行い、DB アクセスを省く。
   return NextResponse.next();
 }
 
