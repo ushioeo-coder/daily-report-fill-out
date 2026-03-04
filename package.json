@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "node scripts/migrate.js; next start -H 0.0.0.0",
+    "start": "node scripts/migrate.js; next start -H 0.0.0.0 -p ${PORT:-3000}",
     "lint": "eslint",
     "setup": "sudo service postgresql start && next dev"
   },
