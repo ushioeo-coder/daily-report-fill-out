@@ -15,11 +15,25 @@ type Report = {
   user_id: string;
   report_date: string;
   start_time: number | null;
+  site_arrival_time: number | null;
+  work_start_time: number | null;
+  work_end_time: number | null;
+  return_time: number | null;
   end_time: number | null;
   note: string | null;
   actual_work_minutes?: number | null;
   overtime_minutes?: number | null;
 };
+
+/** 時間フィールド定義 (表示順) */
+const TIME_COLUMNS: { key: keyof Report; label: string }[] = [
+  { key: "start_time", label: "出社" },
+  { key: "site_arrival_time", label: "現場到着" },
+  { key: "work_start_time", label: "作業開始" },
+  { key: "work_end_time", label: "作業終了" },
+  { key: "return_time", label: "帰社" },
+  { key: "end_time", label: "退勤" },
+];
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -90,7 +104,8 @@ export default function AdminReportsPage() {
     const data: Report[] = await res.json();
     const map = new Map<string, Report>();
     for (const r of data) {
-      map.set(r.report_date, r);
+      // DB が "2026-03-04T00:00:00.000Z" 形式で返す場合があるため正規化
+      map.set(r.report_date.slice(0, 10), r);
     }
     setReports(map);
   }, [from, to, selectedUserId]);
@@ -116,6 +131,10 @@ export default function AdminReportsPage() {
         user_id: selectedUserId,
         report_date: date,
         start_time: null,
+        site_arrival_time: null,
+        work_start_time: null,
+        work_end_time: null,
+        return_time: null,
         end_time: null,
         note: null,
       };
@@ -138,6 +157,10 @@ export default function AdminReportsPage() {
         body: JSON.stringify({
           report_date: date,
           start_time: report.start_time,
+          site_arrival_time: report.site_arrival_time,
+          work_start_time: report.work_start_time,
+          work_end_time: report.work_end_time,
+          return_time: report.return_time,
           end_time: report.end_time,
           note: report.note || null,
           user_id: selectedUserId,
@@ -212,8 +235,11 @@ export default function AdminReportsPage() {
             <tr className="border-b bg-gray-50 text-left text-gray-600">
               <th className="px-3 py-2 whitespace-nowrap">日付</th>
               <th className="px-3 py-2 whitespace-nowrap">曜日</th>
-              <th className="px-3 py-2 whitespace-nowrap">出勤</th>
-              <th className="px-3 py-2 whitespace-nowrap">退勤</th>
+              {TIME_COLUMNS.map((col) => (
+                <th key={col.key} className="px-2 py-2 whitespace-nowrap">
+                  {col.label}
+                </th>
+              ))}
               <th className="px-3 py-2 whitespace-nowrap">実労働</th>
               <th className="px-3 py-2 whitespace-nowrap">残業</th>
               <th className="px-3 py-2">備考</th>
@@ -244,36 +270,23 @@ export default function AdminReportsPage() {
                   >
                     {weekday}
                   </td>
-                  <td className="px-3 py-1.5">
-                    <input
-                      type="time"
-                      value={
-                        report?.start_time != null
-                          ? minutesToHHMM(report.start_time)
-                          : ""
-                      }
-                      onChange={(e) => {
-                        const mins = hhmmToMinutes(e.target.value);
-                        updateLocal(date, "start_time", mins);
-                      }}
-                      className="rounded border px-2 py-1 text-sm text-gray-900"
-                    />
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <input
-                      type="time"
-                      value={
-                        report?.end_time != null
-                          ? minutesToHHMM(report.end_time)
-                          : ""
-                      }
-                      onChange={(e) => {
-                        const mins = hhmmToMinutes(e.target.value);
-                        updateLocal(date, "end_time", mins);
-                      }}
-                      className="rounded border px-2 py-1 text-sm text-gray-900"
-                    />
-                  </td>
+                  {TIME_COLUMNS.map((col) => (
+                    <td key={col.key} className="px-2 py-1.5">
+                      <input
+                        type="time"
+                        value={
+                          report?.[col.key] != null
+                            ? minutesToHHMM(report[col.key] as number)
+                            : ""
+                        }
+                        onChange={(e) => {
+                          const mins = hhmmToMinutes(e.target.value);
+                          updateLocal(date, col.key, mins);
+                        }}
+                        className="w-[7rem] rounded border px-1.5 py-1 text-sm text-gray-900"
+                      />
+                    </td>
+                  ))}
                   <td className="px-3 py-1.5 whitespace-nowrap text-gray-700">
                     {formatMinutes(report?.actual_work_minutes)}
                   </td>
@@ -288,7 +301,7 @@ export default function AdminReportsPage() {
                         updateLocal(date, "note", e.target.value)
                       }
                       placeholder="備考"
-                      className="w-full rounded border px-2 py-1 text-sm text-gray-900 placeholder-gray-300"
+                      className="w-full min-w-[6rem] rounded border px-2 py-1 text-sm text-gray-900 placeholder-gray-300"
                     />
                   </td>
                   <td className="px-3 py-1.5">

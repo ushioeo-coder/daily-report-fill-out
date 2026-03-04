@@ -24,7 +24,8 @@ function minutesToExcelTime(minutes: number): number {
  * テンプレート: templates/日報ひな形.xlsx の「作業員配布用」シートを使用
  *   - B8: 年, E8: 月, J9: 氏名
  *   - Row 15〜45: 日付行
- *   - G列: ③勤務開始時刻, H列: ④勤務終了時刻
+ *   - E列: ①出社, F列: ②現場到着, G列: ③作業開始,
+ *     H列: ④作業終了, I列: ⑤帰社, J列: ⑥退勤
  */
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
 
   const { data: reports, error: reportsError } = await supabase
     .from("daily_reports")
-    .select("report_date, start_time, end_time, note")
+    .select("report_date, start_time, site_arrival_time, work_start_time, work_end_time, return_time, end_time, note")
     .eq("user_id", user_id)
     .gte("report_date", from)
     .lte("report_date", to)
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest) {
   // 日付→レポートのマップ作成
   const reportMap = new Map<string, (typeof reports)[0]>();
   for (const r of reports) {
-    reportMap.set(r.report_date, r);
+    reportMap.set(String(r.report_date).slice(0, 10), r);
   }
 
   // テンプレート読込
@@ -139,10 +140,22 @@ export async function POST(req: NextRequest) {
     const row = DATA_START_ROW + day - 1;
 
     if (report?.start_time != null) {
-      ws.getCell(row, 7).value = minutesToExcelTime(report.start_time); // G列: ③勤務開始
+      ws.getCell(row, 5).value = minutesToExcelTime(report.start_time); // E列: ①出社
+    }
+    if (report?.site_arrival_time != null) {
+      ws.getCell(row, 6).value = minutesToExcelTime(report.site_arrival_time); // F列: ②現場到着
+    }
+    if (report?.work_start_time != null) {
+      ws.getCell(row, 7).value = minutesToExcelTime(report.work_start_time); // G列: ③作業開始
+    }
+    if (report?.work_end_time != null) {
+      ws.getCell(row, 8).value = minutesToExcelTime(report.work_end_time); // H列: ④作業終了
+    }
+    if (report?.return_time != null) {
+      ws.getCell(row, 9).value = minutesToExcelTime(report.return_time); // I列: ⑤帰社
     }
     if (report?.end_time != null) {
-      ws.getCell(row, 8).value = minutesToExcelTime(report.end_time); // H列: ④勤務終了
+      ws.getCell(row, 10).value = minutesToExcelTime(report.end_time); // J列: ⑥退勤
     }
   }
 

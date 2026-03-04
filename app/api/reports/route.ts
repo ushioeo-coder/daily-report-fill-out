@@ -8,6 +8,16 @@ const DATE_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** 時間フィールド名の一覧 (0〜1439 の smallint) */
+const TIME_FIELDS = [
+  "start_time",
+  "site_arrival_time",
+  "work_start_time",
+  "work_end_time",
+  "return_time",
+  "end_time",
+] as const;
+
 /**
  * GET /api/reports?from=YYYY-MM-DD&to=YYYY-MM-DD[&user_id=uuid]
  *
@@ -41,7 +51,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("daily_reports")
-    .select("id, user_id, report_date, start_time, end_time, note, created_at, updated_at")
+    .select("id, user_id, report_date, start_time, site_arrival_time, work_start_time, work_end_time, return_time, end_time, note, created_at, updated_at")
     .gte("report_date", from)
     .lte("report_date", to)
     .order("report_date", { ascending: true });
@@ -85,7 +95,8 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/reports
- * body: { report_date, start_time?, end_time?, note?, user_id? }
+ * body: { report_date, start_time?, site_arrival_time?, work_start_time?,
+ *         work_end_time?, return_time?, end_time?, note?, user_id? }
  *
  * 日報を新規作成 (upsert: 同一日付が既にあれば更新)
  * admin は user_id を指定して他ユーザーの日報を保存可能
@@ -104,7 +115,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { report_date, start_time, end_time, note } = body;
+  const { report_date, note } = body;
 
   if (!DATE_RE.test(report_date)) {
     return NextResponse.json(
@@ -139,24 +150,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // start_time / end_time のバリデーション
-  if (start_time != null && (typeof start_time !== "number" || !Number.isInteger(start_time) || start_time < 0 || start_time > 1439)) {
-    return NextResponse.json(
-      { error: "start_time は 0〜1439 の整数で指定してください。" },
-      { status: 400 }
-    );
-  }
-  if (end_time != null && (typeof end_time !== "number" || !Number.isInteger(end_time) || end_time < 0 || end_time > 1439)) {
-    return NextResponse.json(
-      { error: "end_time は 0〜1439 の整数で指定してください。" },
-      { status: 400 }
-    );
-  }
-  if (start_time != null && end_time != null && start_time >= end_time) {
-    return NextResponse.json(
-      { error: "end_time は start_time より後の時刻を指定してください。" },
-      { status: 400 }
-    );
+  // 6つの時間フィールドのバリデーション (各 0〜1439 の整数 or null)
+  for (const field of TIME_FIELDS) {
+    const val = body[field];
+    if (val != null && (typeof val !== "number" || !Number.isInteger(val) || val < 0 || val > 1439)) {
+      return NextResponse.json(
+        { error: `${field} は 0〜1439 の整数で指定してください。` },
+        { status: 400 }
+      );
+    }
   }
 
   // note のバリデーション
@@ -173,8 +175,12 @@ export async function POST(req: NextRequest) {
       {
         user_id: targetUserId,
         report_date,
-        start_time: start_time ?? null,
-        end_time: end_time ?? null,
+        start_time: body.start_time ?? null,
+        site_arrival_time: body.site_arrival_time ?? null,
+        work_start_time: body.work_start_time ?? null,
+        work_end_time: body.work_end_time ?? null,
+        return_time: body.return_time ?? null,
+        end_time: body.end_time ?? null,
         note: note ?? null,
       },
       { onConflict: "user_id,report_date" }
