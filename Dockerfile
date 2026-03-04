@@ -16,7 +16,6 @@ FROM node:22-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV HOSTNAME=0.0.0.0
 
 # standalone サーバー本体
 COPY --from=builder /app/.next/standalone ./
@@ -30,6 +29,6 @@ COPY --from=builder /app/supabase ./supabase
 # Excel テンプレート
 COPY --from=builder /app/templates ./templates
 
-# Railway が PORT 環境変数でポートを注入する（EXPOSE は指定しない）
+EXPOSE 3000
 
-CMD ["sh", "-c", "node scripts/migrate.js; HOSTNAME=0.0.0.0 node server.js"]
+CMD ["sh", "-c", "echo \"[startup] PORT=${PORT:-not set} NODE_ENV=$NODE_ENV DB=$([ -n \"$DATABASE_URL\" ] && echo configured || echo missing)\"; node scripts/migrate.js; echo \"[startup] Starting server on 0.0.0.0:${PORT:-3000}\"; HOSTNAME=0.0.0.0 exec node server.js"]

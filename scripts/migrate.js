@@ -8,9 +8,9 @@ const { Client } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-const MAX_RETRIES = 2;
-const RETRY_DELAY_MS = 2000;
-const CONNECTION_TIMEOUT_MS = 5000;
+const MAX_RETRIES = 1;
+const RETRY_DELAY_MS = 1000;
+const CONNECTION_TIMEOUT_MS = 3000;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
