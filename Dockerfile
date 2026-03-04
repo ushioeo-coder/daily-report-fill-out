@@ -32,4 +32,4 @@ COPY --from=builder /app/templates ./templates
 
 # Railway が PORT 環境変数でポートを注入する（EXPOSE は指定しない）
 
-CMD ["sh", "-c", "node scripts/migrate.js; node server.js"]
+CMD ["sh", "-c", "node scripts/migrate.js; HOSTNAME=0.0.0.0 node server.js"]
