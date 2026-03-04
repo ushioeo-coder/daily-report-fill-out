@@ -6,7 +6,7 @@
 
 1. ローカルPCの以下のパスからテンプレートファイルをコピー:
    ```
-   C:\Users\sakurai\ﾌﾟﾛｼﾞｪｸﾄ\日報\
+   C:\Users\sakurai\daily-report-fill-out\templates報\
    ```
 
 2. このディレクトリにファイル名 `日報ひな形.xlsx` として配置:
