@@ -136,28 +136,45 @@ export async function POST(req: NextRequest) {
   // 日報データ書込み (Row 15 = 1日目)
   const DATA_START_ROW = 15;
 
+  /**
+   * セルに値を書き込む際、元のスタイル (numFmt, font, border 等) を保持する。
+   * ExcelJS は .value = で直接代入するとスタイルが消えるケースがあるため、
+   * 退避→書込み→再適用する。
+   */
+  function setCellValue(
+    sheet: ExcelJS.Worksheet,
+    rowNum: number,
+    colNum: number,
+    value: number
+  ) {
+    const cell = sheet.getCell(rowNum, colNum);
+    const savedStyle = { ...cell.style };
+    cell.value = value;
+    cell.style = savedStyle;
+  }
+
   for (let day = 1; day <= lastDay; day++) {
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const report = reportMap.get(dateStr);
     const row = DATA_START_ROW + day - 1;
 
     if (report?.start_time != null) {
-      ws.getCell(row, 4).value = minutesToExcelTime(report.start_time); // D列: ①出社
+      setCellValue(ws, row, 5, minutesToExcelTime(report.start_time)); // E列: ①出社
     }
     if (report?.site_arrival_time != null) {
-      ws.getCell(row, 5).value = minutesToExcelTime(report.site_arrival_time); // E列: ②現場到着
+      setCellValue(ws, row, 6, minutesToExcelTime(report.site_arrival_time)); // F列: ②現場到着
     }
     if (report?.work_start_time != null) {
-      ws.getCell(row, 6).value = minutesToExcelTime(report.work_start_time); // F列: ③作業開始
+      setCellValue(ws, row, 7, minutesToExcelTime(report.work_start_time)); // G列: ③作業開始
     }
     if (report?.work_end_time != null) {
-      ws.getCell(row, 7).value = minutesToExcelTime(report.work_end_time); // G列: ④作業終了
+      setCellValue(ws, row, 8, minutesToExcelTime(report.work_end_time)); // H列: ④作業終了
     }
     if (report?.return_time != null) {
-      ws.getCell(row, 8).value = minutesToExcelTime(report.return_time); // H列: ⑤帰社
+      setCellValue(ws, row, 9, minutesToExcelTime(report.return_time)); // I列: ⑤帰社
     }
     if (report?.end_time != null) {
-      ws.getCell(row, 9).value = minutesToExcelTime(report.end_time); // I列: ⑥退勤
+      setCellValue(ws, row, 10, minutesToExcelTime(report.end_time)); // J列: ⑥退勤
     }
   }
 
