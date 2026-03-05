@@ -142,22 +142,22 @@ export async function POST(req: NextRequest) {
     const row = DATA_START_ROW + day - 1;
 
     if (report?.start_time != null) {
-      ws.getCell(row, 5).value = minutesToExcelTime(report.start_time); // E列: ①出社
+      ws.getCell(row, 4).value = minutesToExcelTime(report.start_time); // D列: ①出社
     }
     if (report?.site_arrival_time != null) {
-      ws.getCell(row, 6).value = minutesToExcelTime(report.site_arrival_time); // F列: ②現場到着
+      ws.getCell(row, 5).value = minutesToExcelTime(report.site_arrival_time); // E列: ②現場到着
     }
     if (report?.work_start_time != null) {
-      ws.getCell(row, 7).value = minutesToExcelTime(report.work_start_time); // G列: ③作業開始
+      ws.getCell(row, 6).value = minutesToExcelTime(report.work_start_time); // F列: ③作業開始
     }
     if (report?.work_end_time != null) {
-      ws.getCell(row, 8).value = minutesToExcelTime(report.work_end_time); // H列: ④作業終了
+      ws.getCell(row, 7).value = minutesToExcelTime(report.work_end_time); // G列: ④作業終了
     }
     if (report?.return_time != null) {
-      ws.getCell(row, 9).value = minutesToExcelTime(report.return_time); // I列: ⑤帰社
+      ws.getCell(row, 8).value = minutesToExcelTime(report.return_time); // H列: ⑤帰社
     }
     if (report?.end_time != null) {
-      ws.getCell(row, 10).value = minutesToExcelTime(report.end_time); // J列: ⑥退勤
+      ws.getCell(row, 9).value = minutesToExcelTime(report.end_time); // I列: ⑥退勤
     }
   }
 
