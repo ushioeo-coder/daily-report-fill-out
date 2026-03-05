@@ -133,46 +133,8 @@ export async function POST(req: NextRequest) {
   ws.getCell("E8").value = month;
   ws.getCell("J9").value = user.name;
 
-  // 日報データ書込み (Row 15 = 1日目)
-  const DATA_START_ROW = 15;
-
-  /**
-   * セルに値を書き込む際、元のスタイル (numFmt, font, border 等) を保持する。
-   * ExcelJS は .value = で直接代入するとスタイルが消えるケースがあるため、
-   * 退避→書込み→再適用する。
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function setCellValue(sheet: any, rowNum: number, colNum: number, value: number) {
-    const cell = sheet.getCell(rowNum, colNum);
-    const savedStyle = { ...cell.style };
-    cell.value = value;
-    cell.style = savedStyle;
-  }
-
-  for (let day = 1; day <= lastDay; day++) {
-    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const report = reportMap.get(dateStr);
-    const row = DATA_START_ROW + day - 1;
-
-    if (report?.start_time != null) {
-      setCellValue(ws, row, 5, minutesToExcelTime(report.start_time)); // E列: ①出社
-    }
-    if (report?.site_arrival_time != null) {
-      setCellValue(ws, row, 6, minutesToExcelTime(report.site_arrival_time)); // F列: ②現場到着
-    }
-    if (report?.work_start_time != null) {
-      setCellValue(ws, row, 7, minutesToExcelTime(report.work_start_time)); // G列: ③作業開始
-    }
-    if (report?.work_end_time != null) {
-      setCellValue(ws, row, 8, minutesToExcelTime(report.work_end_time)); // H列: ④作業終了
-    }
-    if (report?.return_time != null) {
-      setCellValue(ws, row, 9, minutesToExcelTime(report.return_time)); // I列: ⑤帰社
-    }
-    if (report?.end_time != null) {
-      setCellValue(ws, row, 10, minutesToExcelTime(report.end_time)); // J列: ⑥退勤
-    }
-  }
+  // ※ 時刻データは ExcelJS では書かず、後段の JSZip XML 書換えで直接対応する。
+  //   ExcelJS は共有文字列型セル("：")への数値上書き時にスタイルを失うことがあるため。
 
   // 不要なシートを削除 (作業員配布用のみ残す)
   const sheetsToRemove: string[] = [];
@@ -186,21 +148,91 @@ export async function POST(req: NextRequest) {
     if (sheet) wb.removeWorksheet(sheet.id);
   }
 
-  // バッファ生成 → NaN 修正
-  // ExcelJS は共有数式のキャッシュ値 (#VALUE! 等) を正しく保持できず、
-  // <v>NaN</v> として書き出してしまう既知の問題がある。
-  // JSZip で後処理し、NaN を 0 に置換して Excel の再計算に委ねる。
+  // バッファ生成
   const rawBuffer = await wb.xlsx.writeBuffer();
   const zip = await JSZip.loadAsync(rawBuffer);
-  for (const name of Object.keys(zip.files)) {
-    if (/xl\/worksheets\/sheet\d+\.xml$/.test(name)) {
-      let xml = await zip.files[name].async("string");
-      if (xml.includes("<v>NaN</v>")) {
-        xml = xml.replace(/<v>NaN<\/v>/g, "<v>0</v>");
-        zip.file(name, xml);
+
+  // =====================================================================
+  // XML レベルでの時刻データ書込み + NaN 修正
+  // Excel の時刻シリアル値 = 分数 / 1440 (1日 = 1.0)
+  // テンプレートのE〜J列セルは共有文字列型 (t="s") で "：" が入っている。
+  // JSZip で XML を直接書き換え、t="s" を外して数値型に変換する。
+  // =====================================================================
+
+  for (const zipEntryName of Object.keys(zip.files)) {
+    if (!/xl\/worksheets\/sheet\d+\.xml$/.test(zipEntryName)) continue;
+
+    let xml = await zip.files[zipEntryName].async("string");
+
+    // 時刻データ書込み (Day 1 = Row 15)
+    const DATA_START_ROW = 15;
+    const COL_MAP: [string, keyof (typeof reports)[0]][] = [
+      ["E", "start_time"],
+      ["F", "site_arrival_time"],
+      ["G", "work_start_time"],
+      ["H", "work_end_time"],
+      ["I", "return_time"],
+      ["J", "end_time"],
+    ];
+
+    for (let day = 1; day <= lastDay; day++) {
+      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const report = reportMap.get(dateStr);
+      if (!report) continue;
+
+      const rowNum = DATA_START_ROW + day - 1;
+
+      for (const [col, field] of COL_MAP) {
+        const val = report[field];
+        if (val == null || typeof val !== "number") continue;
+
+        const excelTime = val / 1440;
+        const cellRef = `${col}${rowNum}`;
+
+        // 共有文字列型 (t="s") のセルを数値型に置換
+        // Before: <c r="E15" s="5" t="s"><v>0</v></c>
+        // After:  <c r="E15" s="5"><v>0.20833...</v></c>
+        const reBefore = new RegExp(
+          `<c r="${cellRef}"([^>]*)\\st="s"([^>]*)><v>[^<]*<\\/v><\\/c>`
+        );
+        if (reBefore.test(xml)) {
+          xml = xml.replace(
+            reBefore,
+            `<c r="${cellRef}"$1$2><v>${excelTime}</v></c>`
+          );
+          continue;
+        }
+
+        // t="s" が先頭にある場合
+        const reBeforeAlt = new RegExp(
+          `<c r="${cellRef}"([^>]*)t="s"([^>]*)><v>[^<]*<\\/v><\\/c>`
+        );
+        if (reBeforeAlt.test(xml)) {
+          xml = xml.replace(
+            reBeforeAlt,
+            `<c r="${cellRef}"$1$2><v>${excelTime}</v></c>`
+          );
+          continue;
+        }
+
+        // すでに数値型 (t 属性なし) の場合: 値だけ上書き
+        const reNum = new RegExp(
+          `(<c r="${cellRef}"[^>]*>)<v>[^<]*<\\/v>(<\\/c>)`
+        );
+        if (reNum.test(xml)) {
+          xml = xml.replace(reNum, `$1<v>${excelTime}</v>$2`);
+        }
       }
     }
+
+    // NaN → 0
+    if (xml.includes("<v>NaN</v>")) {
+      xml = xml.replace(/<v>NaN<\/v>/g, "<v>0</v>");
+    }
+
+    zip.file(zipEntryName, xml);
   }
+
   const buffer = await zip.generateAsync({ type: "arraybuffer" });
 
   const fileName = `日報_${user.name}_${year}年${String(month).padStart(2, "0")}月.xlsx`;
