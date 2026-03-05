@@ -134,28 +134,37 @@ export async function POST(req: NextRequest) {
 
   // 日報データ書込み (Row 15 = 1日目)
   const DATA_START_ROW = 15;
+  const TIME_NUM_FMT = "h:mm";
+
+  /** セルに時刻値を書き込み、表示形式も設定する */
+  function writeTimeCell(row: number, col: number, minutes: number) {
+    const cell = ws!.getCell(row, col);
+    cell.value = minutesToExcelTime(minutes);
+    cell.numFmt = TIME_NUM_FMT;
+  }
+
   for (let day = 1; day <= lastDay; day++) {
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const report = reportMap.get(dateStr);
     const row = DATA_START_ROW + day - 1;
 
     if (report?.start_time != null) {
-      ws.getCell(row, 5).value = minutesToExcelTime(report.start_time); // E列: ①出社
+      writeTimeCell(row, 5, report.start_time); // E列: ①出社
     }
     if (report?.site_arrival_time != null) {
-      ws.getCell(row, 6).value = minutesToExcelTime(report.site_arrival_time); // F列: ②現場到着
+      writeTimeCell(row, 6, report.site_arrival_time); // F列: ②現場到着
     }
     if (report?.work_start_time != null) {
-      ws.getCell(row, 7).value = minutesToExcelTime(report.work_start_time); // G列: ③作業開始
+      writeTimeCell(row, 7, report.work_start_time); // G列: ③作業開始
     }
     if (report?.work_end_time != null) {
-      ws.getCell(row, 8).value = minutesToExcelTime(report.work_end_time); // H列: ④作業終了
+      writeTimeCell(row, 8, report.work_end_time); // H列: ④作業終了
     }
     if (report?.return_time != null) {
-      ws.getCell(row, 9).value = minutesToExcelTime(report.return_time); // I列: ⑤帰社
+      writeTimeCell(row, 9, report.return_time); // I列: ⑤帰社
     }
     if (report?.end_time != null) {
-      ws.getCell(row, 10).value = minutesToExcelTime(report.end_time); // J列: ⑥退勤
+      writeTimeCell(row, 10, report.end_time); // J列: ⑥退勤
     }
   }
 

@@ -81,16 +81,12 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // admin には計算列を付与
-  if (session.role === "admin") {
-    const enriched = reports.map((r: RawReport & Record<string, unknown>) => ({
-      ...r,
-      ...computeDerivedColumns(r),
-    }));
-    return NextResponse.json(enriched);
-  }
-
-  return NextResponse.json(reports);
+  // 全ユーザーに計算列を付与
+  const enriched = reports.map((r: RawReport & Record<string, unknown>) => ({
+    ...r,
+    ...computeDerivedColumns(r),
+  }));
+  return NextResponse.json(enriched);
 }
 
 /**
@@ -134,6 +130,15 @@ export async function POST(req: NextRequest) {
       );
     }
     targetUserId = body.user_id;
+  }
+
+  // 未来日チェック
+  const todayStr = new Date().toISOString().split("T")[0];
+  if (report_date > todayStr) {
+    return NextResponse.json(
+      { error: "未来の日付には入力できません。" },
+      { status: 400 }
+    );
   }
 
   // 30日編集制限チェック (admin はスキップ)
