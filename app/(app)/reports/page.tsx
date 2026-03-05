@@ -13,7 +13,7 @@ type Report = {
   return_time: number | null;
   end_time: number | null;
   note: string | null;
-  actual_work_minutes?: number | null;
+  site_work_minutes?: number | null;
   travel_office_minutes?: number | null;
   overtime_minutes?: number | null;
 };
@@ -224,8 +224,8 @@ export default function ReportsPage() {
                   {col.label}
                 </th>
               ))}
-              <th className="px-2 py-2 whitespace-nowrap">実労働</th>
-              <th className="px-2 py-2 whitespace-nowrap">移動・会社</th>
+              <th className="px-2 py-2 whitespace-nowrap">移動・会社作業</th>
+              <th className="px-2 py-2 whitespace-nowrap">現場作業</th>
               <th className="px-2 py-2 whitespace-nowrap">残業</th>
               <th className="px-2 py-2">備考</th>
               <th className="sticky right-0 bg-gray-50 px-2 py-2"></th>
@@ -276,10 +276,10 @@ export default function ReportsPage() {
                     </td>
                   ))}
                   <td className="px-2 py-1 whitespace-nowrap text-gray-700">
-                    {formatMinutes(report?.actual_work_minutes)}
+                    {formatMinutes(report?.travel_office_minutes)}
                   </td>
                   <td className="px-2 py-1 whitespace-nowrap text-gray-700">
-                    {formatMinutes(report?.travel_office_minutes)}
+                    {formatMinutes(report?.site_work_minutes)}
                   </td>
                   <td className="px-2 py-1 whitespace-nowrap text-gray-700">
                     {formatMinutes(report?.overtime_minutes)}
