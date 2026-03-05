@@ -14,7 +14,7 @@ export default async function AppLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="border-b bg-white px-4 py-3 shadow-sm">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
+        <div className="mx-auto flex max-w-[90rem] items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-lg font-bold text-gray-800">日報管理</h1>
             <span className="text-sm text-gray-600">
@@ -46,7 +46,7 @@ export default async function AppLayout({
           <LogoutButton />
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+      <main className="mx-auto max-w-[90rem] px-4 py-6">{children}</main>
     </div>
   );
 }

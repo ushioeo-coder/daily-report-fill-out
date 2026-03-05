@@ -22,17 +22,18 @@ type Report = {
   end_time: number | null;
   note: string | null;
   actual_work_minutes?: number | null;
+  travel_office_minutes?: number | null;
   overtime_minutes?: number | null;
 };
 
 /** 時間フィールド定義 (表示順) */
 const TIME_COLUMNS: { key: keyof Report; label: string }[] = [
-  { key: "start_time", label: "出社" },
-  { key: "site_arrival_time", label: "現場到着" },
-  { key: "work_start_time", label: "作業開始" },
-  { key: "work_end_time", label: "作業終了" },
-  { key: "return_time", label: "帰社" },
-  { key: "end_time", label: "退勤" },
+  { key: "start_time", label: "①出社" },
+  { key: "site_arrival_time", label: "②現場到着" },
+  { key: "work_start_time", label: "③作業開始" },
+  { key: "work_end_time", label: "④作業終了" },
+  { key: "return_time", label: "⑤帰社" },
+  { key: "end_time", label: "⑥退勤" },
 ];
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -44,6 +45,11 @@ function getWeekday(dateStr: string): string {
 function isWeekend(dateStr: string): boolean {
   const day = new Date(dateStr + "T00:00:00").getDay();
   return day === 0 || day === 6;
+}
+
+function isFutureDate(dateStr: string): boolean {
+  const today = new Date().toISOString().split("T")[0];
+  return dateStr > today;
 }
 
 function getDaysInMonth(year: number, month: number): string[] {
@@ -76,6 +82,7 @@ export default function AdminReportsPage() {
   const [reports, setReports] = useState<Map<string, Report>>(new Map());
   const [saving, setSaving] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<"info" | "error">("info");
 
   const days = getDaysInMonth(year, month);
   const from = days[0];
@@ -104,7 +111,6 @@ export default function AdminReportsPage() {
     const data: Report[] = await res.json();
     const map = new Map<string, Report>();
     for (const r of data) {
-      // DB が "2026-03-04T00:00:00.000Z" 形式で返す場合があるため正規化
       map.set(r.report_date.slice(0, 10), r);
     }
     setReports(map);
@@ -144,6 +150,13 @@ export default function AdminReportsPage() {
   }
 
   async function saveRow(date: string) {
+    // 未来日チェック
+    if (isFutureDate(date)) {
+      setMessage("未来の日付には入力できません。");
+      setMessageType("error");
+      return;
+    }
+
     const report = reports.get(date);
     if (!report) return;
 
@@ -170,14 +183,16 @@ export default function AdminReportsPage() {
       if (!res.ok) {
         const data = await res.json();
         setMessage(data.error ?? "保存に失敗しました。");
+        setMessageType("error");
         return;
       }
 
-      // 保存後に再取得 (計算列を含む最新データ)
       await fetchReports();
       setMessage(`${date} を保存しました。`);
+      setMessageType("info");
     } catch {
       setMessage("通信エラーが発生しました。");
+      setMessageType("error");
     } finally {
       setSaving(null);
     }
@@ -225,25 +240,30 @@ export default function AdminReportsPage() {
       </div>
 
       {message && (
-        <p className="mb-3 text-sm text-blue-600">{message}</p>
+        <p
+          className={`mb-3 text-sm ${messageType === "error" ? "text-red-600" : "text-blue-600"}`}
+        >
+          {message}
+        </p>
       )}
 
       {/* 日報テーブル (計算列付き) */}
       <div className="overflow-x-auto rounded-lg border bg-white shadow-sm">
-        <table className="w-full text-sm">
+        <table className="w-full text-xs">
           <thead>
             <tr className="border-b bg-gray-50 text-left text-gray-600">
-              <th className="px-3 py-2 whitespace-nowrap">日付</th>
-              <th className="px-3 py-2 whitespace-nowrap">曜日</th>
+              <th className="px-2 py-2 whitespace-nowrap">日</th>
+              <th className="px-2 py-2 whitespace-nowrap">曜</th>
               {TIME_COLUMNS.map((col) => (
-                <th key={col.key} className="px-2 py-2 whitespace-nowrap">
+                <th key={col.key} className="px-1 py-2 whitespace-nowrap">
                   {col.label}
                 </th>
               ))}
-              <th className="px-3 py-2 whitespace-nowrap">実労働</th>
-              <th className="px-3 py-2 whitespace-nowrap">残業</th>
-              <th className="px-3 py-2">備考</th>
-              <th className="px-3 py-2"></th>
+              <th className="px-2 py-2 whitespace-nowrap">実労働</th>
+              <th className="px-2 py-2 whitespace-nowrap">移動・会社</th>
+              <th className="px-2 py-2 whitespace-nowrap">残業</th>
+              <th className="px-2 py-2">備考</th>
+              <th className="sticky right-0 bg-gray-50 px-2 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -251,16 +271,18 @@ export default function AdminReportsPage() {
               const report = reports.get(date);
               const weekday = getWeekday(date);
               const weekend = isWeekend(date);
+              const future = isFutureDate(date);
               const dayNum = date.split("-")[2];
+              const rowBg = weekend ? "bg-gray-50" : "bg-white";
 
               return (
                 <tr
                   key={date}
-                  className={`border-b ${weekend ? "bg-gray-50 text-gray-400" : ""}`}
+                  className={`border-b ${weekend ? "bg-gray-50 text-gray-400" : ""} ${future ? "opacity-50" : ""}`}
                 >
-                  <td className="px-3 py-1.5 whitespace-nowrap">{dayNum}</td>
+                  <td className="px-2 py-1 whitespace-nowrap">{dayNum}</td>
                   <td
-                    className={`px-3 py-1.5 whitespace-nowrap ${
+                    className={`px-2 py-1 whitespace-nowrap ${
                       weekday === "日"
                         ? "text-red-500"
                         : weekday === "土"
@@ -271,7 +293,7 @@ export default function AdminReportsPage() {
                     {weekday}
                   </td>
                   {TIME_COLUMNS.map((col) => (
-                    <td key={col.key} className="px-2 py-1.5">
+                    <td key={col.key} className="px-1 py-1">
                       <input
                         type="time"
                         value={
@@ -283,32 +305,39 @@ export default function AdminReportsPage() {
                           const mins = hhmmToMinutes(e.target.value);
                           updateLocal(date, col.key, mins);
                         }}
-                        className="w-[7rem] rounded border px-1.5 py-1 text-sm text-gray-900"
+                        disabled={future}
+                        className="w-[6rem] rounded border px-1 py-0.5 text-xs text-gray-900 disabled:bg-gray-100"
                       />
                     </td>
                   ))}
-                  <td className="px-3 py-1.5 whitespace-nowrap text-gray-700">
+                  <td className="px-2 py-1 whitespace-nowrap text-gray-700">
                     {formatMinutes(report?.actual_work_minutes)}
                   </td>
-                  <td className="px-3 py-1.5 whitespace-nowrap text-gray-700">
+                  <td className="px-2 py-1 whitespace-nowrap text-gray-700">
+                    {formatMinutes(report?.travel_office_minutes)}
+                  </td>
+                  <td className="px-2 py-1 whitespace-nowrap text-gray-700">
                     {formatMinutes(report?.overtime_minutes)}
                   </td>
-                  <td className="px-3 py-1.5">
+                  <td className="px-2 py-1">
                     <input
                       type="text"
                       value={report?.note ?? ""}
                       onChange={(e) =>
                         updateLocal(date, "note", e.target.value)
                       }
+                      disabled={future}
                       placeholder="備考"
-                      className="w-full min-w-[6rem] rounded border px-2 py-1 text-sm text-gray-900 placeholder-gray-300"
+                      className="w-full min-w-[5rem] rounded border px-1.5 py-0.5 text-xs text-gray-900 placeholder-gray-300 disabled:bg-gray-100"
                     />
                   </td>
-                  <td className="px-3 py-1.5">
+                  <td
+                    className={`sticky right-0 ${rowBg} px-2 py-1`}
+                  >
                     <button
                       onClick={() => saveRow(date)}
-                      disabled={saving === date}
-                      className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                      disabled={saving === date || future}
+                      className="rounded bg-blue-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                     >
                       {saving === date ? "..." : "保存"}
                     </button>

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
+import { AdminAuthGate } from "./admin-auth-gate";
 
 export default async function AdminLayout({
   children,
@@ -11,5 +12,5 @@ export default async function AdminLayout({
     redirect("/reports");
   }
 
-  return <>{children}</>;
+  return <AdminAuthGate>{children}</AdminAuthGate>;
 }
