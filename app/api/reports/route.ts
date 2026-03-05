@@ -23,7 +23,7 @@ const TIME_FIELDS = [
  *
  * user: 自分の日報のみ取得 (user_id パラメータは無視)
  * admin: user_id 指定で特定ユーザー、省略で全ユーザーの日報を取得
- *        レスポンスに計算列 (actual_work_minutes, overtime_minutes) を付与
+ *        レスポンスに計算列 (site_work_minutes, travel_office_minutes, overtime_minutes) を付与
  */
 export async function GET(req: NextRequest) {
   const session = await getSession();
