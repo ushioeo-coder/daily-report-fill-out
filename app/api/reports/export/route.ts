@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 import path from "path";
 import { getSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
@@ -134,14 +135,6 @@ export async function POST(req: NextRequest) {
 
   // 日報データ書込み (Row 15 = 1日目)
   const DATA_START_ROW = 15;
-  const TIME_NUM_FMT = "h:mm";
-
-  /** セルに時刻値を書き込み、表示形式も設定する */
-  function writeTimeCell(row: number, col: number, minutes: number) {
-    const cell = ws!.getCell(row, col);
-    cell.value = minutesToExcelTime(minutes);
-    cell.numFmt = TIME_NUM_FMT;
-  }
 
   for (let day = 1; day <= lastDay; day++) {
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -149,22 +142,22 @@ export async function POST(req: NextRequest) {
     const row = DATA_START_ROW + day - 1;
 
     if (report?.start_time != null) {
-      writeTimeCell(row, 5, report.start_time); // E列: ①出社
+      ws.getCell(row, 5).value = minutesToExcelTime(report.start_time); // E列: ①出社
     }
     if (report?.site_arrival_time != null) {
-      writeTimeCell(row, 6, report.site_arrival_time); // F列: ②現場到着
+      ws.getCell(row, 6).value = minutesToExcelTime(report.site_arrival_time); // F列: ②現場到着
     }
     if (report?.work_start_time != null) {
-      writeTimeCell(row, 7, report.work_start_time); // G列: ③作業開始
+      ws.getCell(row, 7).value = minutesToExcelTime(report.work_start_time); // G列: ③作業開始
     }
     if (report?.work_end_time != null) {
-      writeTimeCell(row, 8, report.work_end_time); // H列: ④作業終了
+      ws.getCell(row, 8).value = minutesToExcelTime(report.work_end_time); // H列: ④作業終了
     }
     if (report?.return_time != null) {
-      writeTimeCell(row, 9, report.return_time); // I列: ⑤帰社
+      ws.getCell(row, 9).value = minutesToExcelTime(report.return_time); // I列: ⑤帰社
     }
     if (report?.end_time != null) {
-      writeTimeCell(row, 10, report.end_time); // J列: ⑥退勤
+      ws.getCell(row, 10).value = minutesToExcelTime(report.end_time); // J列: ⑥退勤
     }
   }
 
@@ -180,8 +173,22 @@ export async function POST(req: NextRequest) {
     if (sheet) wb.removeWorksheet(sheet.id);
   }
 
-  // バッファ生成
-  const buffer = await wb.xlsx.writeBuffer();
+  // バッファ生成 → NaN 修正
+  // ExcelJS は共有数式のキャッシュ値 (#VALUE! 等) を正しく保持できず、
+  // <v>NaN</v> として書き出してしまう既知の問題がある。
+  // JSZip で後処理し、NaN を 0 に置換して Excel の再計算に委ねる。
+  const rawBuffer = await wb.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(rawBuffer);
+  for (const name of Object.keys(zip.files)) {
+    if (/xl\/worksheets\/sheet\d+\.xml$/.test(name)) {
+      let xml = await zip.files[name].async("string");
+      if (xml.includes("<v>NaN</v>")) {
+        xml = xml.replace(/<v>NaN<\/v>/g, "<v>0</v>");
+        zip.file(name, xml);
+      }
+    }
+  }
+  const buffer = await zip.generateAsync({ type: "arraybuffer" });
 
   const fileName = `日報_${user.name}_${year}年${String(month).padStart(2, "0")}月.xlsx`;
 
