@@ -141,12 +141,8 @@ export async function POST(req: NextRequest) {
    * ExcelJS は .value = で直接代入するとスタイルが消えるケースがあるため、
    * 退避→書込み→再適用する。
    */
-  function setCellValue(
-    sheet: ExcelJS.Worksheet,
-    rowNum: number,
-    colNum: number,
-    value: number
-  ) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function setCellValue(sheet: any, rowNum: number, colNum: number, value: number) {
     const cell = sheet.getCell(rowNum, colNum);
     const savedStyle = { ...cell.style };
     cell.value = value;
