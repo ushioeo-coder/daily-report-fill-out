@@ -145,11 +145,11 @@ export async function POST(req: NextRequest) {
   // 新ひな形の構造:
   //   B3 = 年数 (2026 等)
   //   E3 = 月数 (3 等) ← I3の数式 DATE(B3,E3,1) が自動計算される
-  //   I5 = 氏名入力欄 (空白スタイル付きセル)
+  //   I4 = "氏名"のラベル、J4が入力欄
   //   10行目からデータ行 (B10に日付数式)
   ws.getCell("B3").value = year;
   ws.getCell("E3").value = month;
-  ws.getCell("I5").value = user.name;
+  ws.getCell("J4").value = user.name;
 
   // E〜J列に時刻データを書き込む
   // 新テンプレートのE〜Jセルはval=null(空セル)なのでExcelJSで直接値設定可能
