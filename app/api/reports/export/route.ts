@@ -134,10 +134,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const ws = wb.getWorksheet("作業員配布用");
+  const ws = wb.getWorksheet("ひな型");
   if (!ws) {
     return NextResponse.json(
-      { error: "テンプレートに「作業員配布用」シートが見つかりません。" },
+      { error: "テンプレートに「ひな型」シートが見つかりません。" },
       { status: 500 }
     );
   }
@@ -147,10 +147,10 @@ export async function POST(req: NextRequest) {
   ws.getCell("E8").value = month;
   ws.getCell("J9").value = user.name;
 
-  // 不要なシートを削除 (作業員配布用のみ残す)
+  // 不要なシートを削除 (ひな型のみ残す)
   const sheetsToRemove: string[] = [];
   wb.eachSheet((sheet) => {
-    if (sheet.name !== "作業員配布用") {
+    if (sheet.name !== "ひな型") {
       sheetsToRemove.push(sheet.name);
     }
   });
@@ -166,43 +166,8 @@ export async function POST(req: NextRequest) {
   // =====================================================================
   // JSZip で worksheet.xml を直接処理
   // • 共有文字列型 (t="s") セルへの時刻値書き込み
-  // • J列のnumFmt修正
   // • K15数式修正
   // =====================================================================
-
-  // styles.xml から time numFmtId を取得
-  const stylesXml = await zip.files["xl/styles.xml"].async("string");
-  let timeFmtId: number | undefined;
-  {
-    const numFmtsMatch = stylesXml.match(/<numFmts count="\d+">([\s\S]*?)<\/numFmts>/);
-    if (numFmtsMatch) {
-      for (const m of numFmtsMatch[1].matchAll(/<numFmt numFmtId="(\d+)" formatCode="([^"]+)"/g)) {
-        if (m[2].includes("h:mm") || m[2].includes("h]:mm")) {
-          timeFmtId = parseInt(m[1]);
-          break;
-        }
-      }
-    }
-  }
-
-  // cellXfs エントリーを配列に展間してJ列用numFmtバリアントを作成
-  const cellXfsContent = (stylesXml.match(/<cellXfs count="\d+">([\s\S]*?)<\/cellXfs>/) ?? [])[1] ?? "";
-  const xfEntries: string[] = [];
-  for (const m of cellXfsContent.matchAll(/<xf ([^>]+)(?:\s*\/>|>([\s\S]*?)<\/xf>)/g)) {
-    xfEntries.push(m[0]);
-  }
-  const numFmtStyleCache: Record<number, number> = {};
-  function createTimeNumFmtVariant(origId: number): number {
-    if (!timeFmtId || numFmtStyleCache[origId] !== undefined) return numFmtStyleCache[origId] ?? origId;
-    const orig = xfEntries[origId];
-    if (!orig) return origId;
-    let xf = orig.replace(/numFmtId="\d+"/, `numFmtId="${timeFmtId}"`);
-    if (!xf.includes("applyNumberFormat=")) xf = xf.replace("<xf ", '<xf applyNumberFormat="1" ');
-    const newId = xfEntries.length;
-    xfEntries.push(xf);
-    numFmtStyleCache[origId] = newId;
-    return newId;
-  }
 
   // --- worksheet XML の処理 ---
   const DATA_START_ROW = 15;
@@ -225,18 +190,7 @@ export async function POST(req: NextRequest) {
     for (let day = 1; day <= lastDay; day++) {
       const rowNum = DATA_START_ROW + day - 1;
 
-      // J列のnumFmt修正 (平日のJセルは小数でなく時刻形式で表示する)
-      const reJ = new RegExp(`(<c r="J${rowNum}"[^>]*?)\\bs="(\\d+)"`);
-      const jm = xml.match(reJ);
-      if (jm) {
-        const newSt = createTimeNumFmtVariant(parseInt(jm[2]));
-        if (newSt !== parseInt(jm[2])) {
-          xml = xml.replace(reJ, `$1s="${newSt}"`);
-        }
-      }
-
-      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      const report = reportMap.get(dateStr);
+      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`; const report = reportMap.get(dateStr);
       if (!report) continue;
 
       for (const [col, field] of COL_MAP) {
@@ -267,15 +221,6 @@ export async function POST(req: NextRequest) {
 
     zip.file(zipEntryName, xml);
     console.log(`[export] sheet ${zipEntryName}: replacements done`);
-  }
-
-  // styles.xml を更新した xfEntries で更新 (J列用numFmtバリアント分だけ追加)
-  if (xfEntries.length > 0) {
-    const updatedStyles = stylesXml.replace(
-      /<cellXfs count="\d+">[\s\S]*?<\/cellXfs>/,
-      `<cellXfs count="${xfEntries.length}">${xfEntries.join("")}</cellXfs>`
-    );
-    zip.file("xl/styles.xml", updatedStyles);
   }
 
   console.log(`[export] all done, returning buffer`);
