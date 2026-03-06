@@ -142,10 +142,40 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 年月・氏名を設定
-  ws.getCell("B8").value = year;
-  ws.getCell("E8").value = month;
-  ws.getCell("J9").value = user.name;
+  // 新ひな形の構造:
+  //   B3 = 年数 (2026 等)
+  //   E3 = 月数 (3 等) ← I3の数式 DATE(B3,E3,1) が自動計算される
+  //   I5 = 氏名入力欄 (空白スタイル付きセル)
+  //   10行目からデータ行 (B10に日付数式)
+  ws.getCell("B3").value = year;
+  ws.getCell("E3").value = month;
+  ws.getCell("I5").value = user.name;
+
+  // E〜J列に時刻データを書き込む
+  // 新テンプレートのE〜Jセルはval=null(空セル)なのでExcelJSで直接値設定可能
+  const DATA_START_ROW = 10;  // 新テンプレートは10行目からデータ
+  const COL_MAP: [string, keyof (typeof reports)[0]][] = [
+    ["E", "start_time"],
+    ["F", "site_arrival_time"],
+    ["G", "work_start_time"],
+    ["H", "work_end_time"],
+    ["I", "return_time"],
+    ["J", "end_time"],
+  ];
+
+  for (let day = 1; day <= lastDay; day++) {
+    const rowNum = DATA_START_ROW + day - 1;
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const report = reportMap.get(dateStr);
+    if (!report) continue;
+
+    for (const [col, field] of COL_MAP) {
+      const val = report[field];
+      if (val == null || typeof val !== "number") continue;
+      const cell = ws.getCell(`${col}${rowNum}`);
+      cell.value = val / 1440;  // Excel時刻シリアル値 (1日=1.0)
+    }
+  }
 
   // 不要なシートを削除 (ひな型のみ残す)
   const sheetsToRemove: string[] = [];
@@ -159,68 +189,23 @@ export async function POST(req: NextRequest) {
     if (sheet) wb.removeWorksheet(sheet.id);
   }
 
+  // =====================================================================
+  // JSZip 処理 (K15数式修正、NaN対策など)
+  // 新テンプレートではE〜Jが空セルのためt="s"の置換は不要
+  // =====================================================================
+
   // バッファ生成
   const rawBuffer = await wb.xlsx.writeBuffer();
   const zip = await JSZip.loadAsync(rawBuffer);
 
-  // =====================================================================
-  // JSZip で worksheet.xml を直接処理
-  // • 共有文字列型 (t="s") セルへの時刻値書き込み
-  // • K15数式修正
-  // =====================================================================
-
-  // --- worksheet XML の処理 ---
-  const DATA_START_ROW = 15;
-  const COL_MAP: [string, keyof (typeof reports)[0]][] = [
-    ["E", "start_time"],
-    ["F", "site_arrival_time"],
-    ["G", "work_start_time"],
-    ["H", "work_end_time"],
-    ["I", "return_time"],
-    ["J", "end_time"],
-  ];
-
-  let totalReplacements = 0;
+  // NaN 対策のみ実施
   for (const zipEntryName of Object.keys(zip.files)) {
     if (!/xl\/worksheets\/sheet\d+\.xml$/.test(zipEntryName)) continue;
-
     let xml = await zip.files[zipEntryName].async("string");
-    console.log(`[export] processing sheet: ${zipEntryName} (xml length: ${xml.length})`);
-
-    for (let day = 1; day <= lastDay; day++) {
-      const rowNum = DATA_START_ROW + day - 1;
-
-      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`; const report = reportMap.get(dateStr);
-      if (!report) continue;
-
-      for (const [col, field] of COL_MAP) {
-        const val = report[field];
-        if (val == null || typeof val !== "number") continue;
-        const excelTime = val / 1440;
-        const cellRef = `${col}${rowNum}`;
-        const reBefore = new RegExp(`<c r="${cellRef}"([^>]*)\\st="s"([^>]*)><v>[^<]*<\/v><\/c>`);
-        if (reBefore.test(xml)) {
-          xml = xml.replace(reBefore, `<c r="${cellRef}"$1$2><v>${excelTime}</v></c>`);
-          continue;
-        }
-        const reAlt = new RegExp(`<c r="${cellRef}"([^>]*)t="s"([^>]*)><v>[^<]*<\/v><\/c>`);
-        if (reAlt.test(xml)) {
-          xml = xml.replace(reAlt, `<c r="${cellRef}"$1$2><v>${excelTime}</v></c>`);
-          continue;
-        }
-        const reNum = new RegExp(`(<c r="${cellRef}"[^>]*>)<v>[^<]*<\/v>(<\/c>)`);
-        if (reNum.test(xml)) xml = xml.replace(reNum, `$1<v>${excelTime}</v>$2`);
-      }
+    if (xml.includes("<v>NaN</v>")) {
+      xml = xml.replace(/<v>NaN<\/v>/g, "<v>0</v>");
+      zip.file(zipEntryName, xml);
     }
-
-    if (xml.includes("<v>NaN</v>")) xml = xml.replace(/<v>NaN<\/v>/g, "<v>0</v>");
-    xml = xml.replace(
-      /(<c r="K15"[^>]*><f[^>]*>)F15-E15\+J15-I15(<\/f>)/,
-      "$1F15-E15+J15-H15$2"
-    );
-
-    zip.file(zipEntryName, xml);
-    console.log(`[export] sheet ${zipEntryName}: replacements done`);
   }
 
   console.log(`[export] all done, returning buffer`);
