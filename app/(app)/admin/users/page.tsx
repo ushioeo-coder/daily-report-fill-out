@@ -19,6 +19,13 @@ export default function AdminUsersPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // パスワードリセット用ステート
+  const [resetUserId, setResetUserId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+
   async function fetchUsers() {
     const res = await fetch("/api/users");
     if (res.ok) setUsers(await res.json());
@@ -84,6 +91,43 @@ export default function AdminUsersPage() {
 
     setMessage(`${user.employee_id} - ${user.name} を削除しました。`);
     await fetchUsers();
+  }
+
+  async function handlePasswordReset(user: User) {
+    if (!resetPassword) {
+      setResetError("新しいパスワードを入力してください。");
+      return;
+    }
+
+    setResetError("");
+    setResetMessage("");
+    setResetLoading(true);
+
+    try {
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          new_password: resetPassword,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setResetError(data.error ?? "パスワードの変更に失敗しました。");
+        return;
+      }
+
+      setResetMessage(`${user.name} のパスワードを変更しました。`);
+      setResetPassword("");
+      setTimeout(() => setResetUserId(null), 3000); // 3秒後に閉じる
+    } catch {
+      setResetError("通信エラーが発生しました。");
+    } finally {
+      setResetLoading(false);
+    }
   }
 
   return (
@@ -174,12 +218,52 @@ export default function AdminUsersPage() {
                   {u.role === "admin" ? "管理者" : "一般"}
                 </td>
                 <td className="px-4 py-2">
-                  <button
-                    onClick={() => handleDelete(u)}
-                    className="rounded border border-red-300 px-3 py-1 text-xs text-red-600 hover:bg-red-50"
-                  >
-                    削除
-                  </button>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setResetUserId(resetUserId === u.id ? null : u.id);
+                          setResetPassword("");
+                          setResetError("");
+                          setResetMessage("");
+                        }}
+                        className="rounded border border-blue-300 px-3 py-1 text-xs text-blue-600 hover:bg-blue-50"
+                      >
+                        {resetUserId === u.id ? "キャンセル" : "パスワード変更"}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(u)}
+                        className="rounded border border-red-300 px-3 py-1 text-xs text-red-600 hover:bg-red-50"
+                      >
+                        削除
+                      </button>
+                    </div>
+                    {resetUserId === u.id && (
+                      <div className="mt-2 flex flex-col gap-2 rounded bg-gray-50 p-3 shadow-inner">
+                        <label className="text-xs text-gray-600">
+                          新しいパスワード <span className="text-gray-400">(英数6文字以上)</span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="新パスワード"
+                            value={resetPassword}
+                            onChange={(e) => setResetPassword(e.target.value)}
+                            className="w-40 rounded border px-2 py-1 text-sm text-gray-900"
+                          />
+                          <button
+                            onClick={() => handlePasswordReset(u)}
+                            disabled={resetLoading}
+                            className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            {resetLoading ? "更新中..." : "保存"}
+                          </button>
+                        </div>
+                        {resetError && <p className="text-xs text-red-600">{resetError}</p>}
+                        {resetMessage && <p className="text-xs text-green-600">{resetMessage}</p>}
+                      </div>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
