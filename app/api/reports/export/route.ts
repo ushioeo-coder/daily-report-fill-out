@@ -157,6 +157,17 @@ export async function POST(req: NextRequest) {
   const sundayFill = { ...ws.getCell("E15").fill };
   const weekdayFill = { ...ws.getCell("E16").fill };
 
+  // ひな形から時刻用の表示形式(numFmt)を取得
+  const timeNumFmt = ws.getCell("E15").numFmt || "[h]:mm;#;#";
+  const COL_MAP: [string, keyof (typeof reports)[0]][] = [
+    ["E", "start_time"],
+    ["F", "site_arrival_time"],
+    ["G", "work_start_time"],
+    ["H", "work_end_time"],
+    ["I", "return_time"],
+    ["J", "end_time"],
+  ];
+
   for (let day = 1; day <= 31; day++) {
     const rowNum = DATA_START_ROW + day - 1;
     let isSunday = false;
@@ -166,14 +177,30 @@ export async function POST(req: NextRequest) {
     }
     const targetFill = isSunday ? sundayFill : weekdayFill;
 
+    // E〜M列の背景色(fill)を設定
     for (const c of colsEM) {
       const cell = ws.getCell(`${c}${rowNum}`);
       cell.fill = targetFill; // 背景色のみを上書き、フォントや罫線等は維持される
     }
-  }
 
-  // ※ 時刻データは ExcelJS では書かず、後段の JSZip XML 書換えで直接対応する。
-  //   ExcelJS は共有文字列型セル("：")への数値上書き時にスタイルを失うことがあるため。
+    if (day <= lastDay) {
+      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const report = reportMap.get(dateStr);
+      if (report) {
+        // レポートデータがあれば時刻を書き込む
+        for (const [col, field] of COL_MAP) {
+          const val = report[field];
+          if (val != null && typeof val === "number") {
+            const excelTime = val / 1440;
+            const cell = ws.getCell(`${col}${rowNum}`);
+            // 値と表示形式を設定 (テンプレートのJ16はnumFmtが無い場合があるので明示的に指定)
+            cell.value = excelTime;
+            cell.numFmt = timeNumFmt;
+          }
+        }
+      }
+    }
+  }
 
   // 不要なシートを削除 (作業員配布用のみ残す)
   const sheetsToRemove: string[] = [];
@@ -192,10 +219,8 @@ export async function POST(req: NextRequest) {
   const zip = await JSZip.loadAsync(rawBuffer);
 
   // =====================================================================
-  // XML レベルでの時刻データ書込み + NaN 修正
-  // Excel の時刻シリアル値 = 分数 / 1440 (1日 = 1.0)
-  // テンプレートのE〜J列セルは共有文字列型 (t="s") で "：" が入っている。
-  // JSZip で XML を直接書き換え、t="s" を外して数値型に変換する。
+  // ExcelJS が出力した XML の後処理 (セル内の数式エラー対策)
+  // JSZip で XML を書き換え、#VALUE! または NaN を修正する。
   // =====================================================================
 
   let totalReplacements = 0;
@@ -204,65 +229,6 @@ export async function POST(req: NextRequest) {
 
     let xml = await zip.files[zipEntryName].async("string");
     console.log(`[export] processing sheet: ${zipEntryName} (xml length: ${xml.length})`);
-
-    // 時刻データ書込み (Day 1 = Row 15)
-    const DATA_START_ROW = 15;
-    const COL_MAP: [string, keyof (typeof reports)[0]][] = [
-      ["E", "start_time"],
-      ["F", "site_arrival_time"],
-      ["G", "work_start_time"],
-      ["H", "work_end_time"],
-      ["I", "return_time"],
-      ["J", "end_time"],
-    ];
-
-    for (let day = 1; day <= lastDay; day++) {
-      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      const report = reportMap.get(dateStr);
-      if (!report) continue;
-
-      const rowNum = DATA_START_ROW + day - 1;
-
-      for (const [col, field] of COL_MAP) {
-        const val = report[field];
-        if (val == null || typeof val !== "number") continue;
-
-        const excelTime = val / 1440;
-        const cellRef = `${col}${rowNum}`;
-
-        // 共有文字列型 (t="s") のセルを数値型に置換
-        const reBefore = new RegExp(
-          `<c r="${cellRef}"([^>]*)\\st="s"([^>]*)><v>[^<]*<\\/v><\\/c>`
-        );
-        if (reBefore.test(xml)) {
-          xml = xml.replace(
-            reBefore,
-            `<c r="${cellRef}"$1$2><v>${excelTime}</v></c>`
-          );
-          continue;
-        }
-
-        // t="s" が先頭にある場合
-        const reBeforeAlt = new RegExp(
-          `<c r="${cellRef}"([^>]*)t="s"([^>]*)><v>[^<]*<\\/v><\\/c>`
-        );
-        if (reBeforeAlt.test(xml)) {
-          xml = xml.replace(
-            reBeforeAlt,
-            `<c r="${cellRef}"$1$2><v>${excelTime}</v></c>`
-          );
-          continue;
-        }
-
-        // すでに数値型 (t 属性なし) の場合: 値だけ上書き
-        const reNum = new RegExp(
-          `(<c r="${cellRef}"[^>]*>)<v>[^<]*<\\/v>(<\\/c>)`
-        );
-        if (reNum.test(xml)) {
-          xml = xml.replace(reNum, `$1<v>${excelTime}</v>$2`);
-        }
-      }
-    }
 
     // NaN → 0
     if (xml.includes("<v>NaN</v>")) {
