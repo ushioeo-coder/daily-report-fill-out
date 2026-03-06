@@ -110,9 +110,16 @@ export async function POST(req: NextRequest) {
   }
 
   // 日付→レポートのマップ作成
+  // pg ライブラリは date 型を JavaScript Date オブジェクトとして返すことがある。
+  // String(date) では "Sun Mar 01 ..." になるため toISOString() を使って確実に YYYY-MM-DD に変換する。
   const reportMap = new Map<string, (typeof reports)[0]>();
   for (const r of reports) {
-    reportMap.set(String(r.report_date).slice(0, 10), r);
+    const rd = r.report_date;
+    const key =
+      rd instanceof Date
+        ? rd.toISOString().slice(0, 10)
+        : String(rd).slice(0, 10);
+    reportMap.set(key, r);
   }
 
   // テンプレート読込
