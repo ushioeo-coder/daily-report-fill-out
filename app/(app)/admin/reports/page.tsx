@@ -306,8 +306,15 @@ export default function AdminReportsPage() {
                             const mins = hhmmToMinutes(e.target.value);
                             updateLocal(date, col.key, mins);
                           }}
+                          onClick={(e) => {
+                            try {
+                              (e.target as any).showPicker();
+                            } catch (err) {
+                              // showPickerがサポートされていないブラウザ用
+                            }
+                          }}
                           disabled={future}
-                          className="w-[6rem] rounded border px-1 py-0.5 text-xs text-gray-900 disabled:bg-gray-100 pr-5"
+                          className="w-[6.5rem] cursor-pointer rounded border px-2 py-1 text-xs text-gray-900 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 pr-5 transition-colors hover:border-blue-400"
                         />
                         {report?.[col.key] != null && !future && (
                           <button
