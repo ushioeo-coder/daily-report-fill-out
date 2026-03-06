@@ -277,9 +277,10 @@ export default function AdminReportsPage() {
           翌月
         </button>
 
-        <span className="text-sm text-gray-500">
-          {selectedUser.name}
-        </span>
+        {selectedUser && (
+          <span className="text-sm text-gray-500">
+            {selectedUser.name}
+          </span>
         )}
 
         <div className="ml-auto flex items-center gap-2 rounded-lg bg-red-50 p-3 border border-red-100">
@@ -351,10 +352,10 @@ export default function AdminReportsPage() {
                   <td className="px-2 py-1 whitespace-nowrap">{dayNum}</td>
                   <td
                     className={`px-2 py-1 whitespace-nowrap ${weekday === "日"
-                        ? "text-red-500"
-                        : weekday === "土"
-                          ? "text-blue-500"
-                          : ""
+                      ? "text-red-500"
+                      : weekday === "土"
+                        ? "text-blue-500"
+                        : ""
                       }`}
                   >
                     {weekday}
