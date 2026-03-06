@@ -142,8 +142,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 年月・氏名だけ設定。値やスタイルはJSZip側で一括設定する。  
-  // ExcelJSは各セルのスタイルを正しく再生成できないため。
+  // 年月・氏名を設定
+  ws.getCell("B8").value = year;
+  ws.getCell("E8").value = month;
+  ws.getCell("J9").value = user.name;
 
   // 不要なシートを削除 (作業員配布用のみ残す)
   const sheetsToRemove: string[] = [];
@@ -162,43 +164,14 @@ export async function POST(req: NextRequest) {
   const zip = await JSZip.loadAsync(rawBuffer);
 
   // =====================================================================
-  // JSZip で styles.xml と worksheet.xml を直接処理
-  // ExcelJSの具体的なバグ: t="s"(共有文字列)型セルへの値書き込み時から、fillが失われる。
-  // このためJSZipでstyles.xmlを直接操作し、blue fill専用スタイルIDを動的生成して適用する。
+  // JSZip で worksheet.xml を直接処理
+  // • 共有文字列型 (t="s") セルへの時刻値書き込み
+  // • J列のnumFmt修正
+  // • K15数式修正
   // =====================================================================
 
-  // --- styles.xml の解析とブルーフィルドIDの確認 ---
-  let stylesXml = await zip.files["xl/styles.xml"].async("string");
-
-  // fills セクションを解析してblue fill(FF00B0F0)のIDを探す
-  let blueFillId: number;
-  {
-    const fillsContentMatch = stylesXml.match(/<fills count="\d+">([\s\S]*?)<\/fills>/);
-    const fillsContent = fillsContentMatch ? fillsContentMatch[1] : "";
-    const fillItems = [...fillsContent.matchAll(/<fill>([\s\S]*?)<\/fill>/g)];
-    const foundIdx = fillItems.findIndex((m) => /FF00B0F0/.test(m[0]));
-    if (foundIdx !== -1) {
-      blueFillId = foundIdx;
-    } else {
-      // blue fillを追加
-      const newBlue = '<fill><patternFill patternType="solid"><fgColor rgb="FF00B0F0"/><bgColor indexed="64"/></patternFill></fill>';
-      const countMatch = stylesXml.match(/<fills count="(\d+)">/);
-      const oldCount = countMatch ? parseInt(countMatch[1]) : 0;
-      blueFillId = oldCount;
-      stylesXml = stylesXml
-        .replace(/<fills count="\d+">/, `<fills count="${oldCount + 1}">`)
-        .replace("</fills>", `${newBlue}</fills>`);
-    }
-  }
-
-  // cellXfs エントリーを配列に展間
-  const cellXfsContent = (stylesXml.match(/<cellXfs count="\d+">([\s\S]*?)<\/cellXfs>/) ?? [])[1] ?? "";
-  const xfEntries: string[] = [];
-  for (const m of cellXfsContent.matchAll(/<xf ([^>]+)(?:\s*\/>|>([\s\S]*?)<\/xf>)/g)) {
-    xfEntries.push(m[0]);
-  }
-
-  // time numFmtId を取得 (styles.xmlの numFmts セクションから)
+  // styles.xml から time numFmtId を取得
+  const stylesXml = await zip.files["xl/styles.xml"].async("string");
   let timeFmtId: number | undefined;
   {
     const numFmtsMatch = stylesXml.match(/<numFmts count="\d+">([\s\S]*?)<\/numFmts>/);
@@ -212,23 +185,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // blueバリアントスタイルのキャッシュ
-  const blueStyleCache: Record<number, number> = {};
-  function createBlueVariant(origId: number): number {
-    if (blueStyleCache[origId] !== undefined) return blueStyleCache[origId];
-    const orig = xfEntries[origId];
-    if (!orig) return origId;
-    let xf = orig.replace(/fillId="\d+"/, `fillId="${blueFillId}"`);
-    xf = xf.includes("applyFill=")
-      ? xf.replace(/applyFill="\d+"/, 'applyFill="1"')
-      : xf.replace("<xf ", '<xf applyFill="1" ');
-    const newId = xfEntries.length;
-    xfEntries.push(xf);
-    blueStyleCache[origId] = newId;
-    return newId;
+  // cellXfs エントリーを配列に展間してJ列用numFmtバリアントを作成
+  const cellXfsContent = (stylesXml.match(/<cellXfs count="\d+">([\s\S]*?)<\/cellXfs>/) ?? [])[1] ?? "";
+  const xfEntries: string[] = [];
+  for (const m of cellXfsContent.matchAll(/<xf ([^>]+)(?:\s*\/>|>([\s\S]*?)<\/xf>)/g)) {
+    xfEntries.push(m[0]);
   }
-
-  // timeNumFmtバリアントスタイルのキャッシュ (J列の大豢小数を修正)
   const numFmtStyleCache: Record<number, number> = {};
   function createTimeNumFmtVariant(origId: number): number {
     if (!timeFmtId || numFmtStyleCache[origId] !== undefined) return numFmtStyleCache[origId] ?? origId;
@@ -244,7 +206,6 @@ export async function POST(req: NextRequest) {
 
   // --- worksheet XML の処理 ---
   const DATA_START_ROW = 15;
-  const colsEM = ["E", "F", "G", "H", "I", "J", "K", "L", "M"];
   const COL_MAP: [string, keyof (typeof reports)[0]][] = [
     ["E", "start_time"],
     ["F", "site_arrival_time"],
@@ -261,37 +222,19 @@ export async function POST(req: NextRequest) {
     let xml = await zip.files[zipEntryName].async("string");
     console.log(`[export] processing sheet: ${zipEntryName} (xml length: ${xml.length})`);
 
-    for (let day = 1; day <= 31; day++) {
+    for (let day = 1; day <= lastDay; day++) {
       const rowNum = DATA_START_ROW + day - 1;
-      let isSunday = false;
-      if (day <= lastDay) {
-        const d = new Date(year, month - 1, day);
-        isSunday = d.getDay() === 0;
-      }
 
-      // E〜M列の背景色 → 日曜ならblueバリアントスタイルに更新
-      if (isSunday) {
-        for (const c of colsEM) {
-          const reSt = new RegExp(`(<c r="${c}${rowNum}"[^>]*?)\\bs="(\\d+)"`);
-          const cm = xml.match(reSt);
-          if (cm) {
-            const newSt = createBlueVariant(parseInt(cm[2]));
-            xml = xml.replace(reSt, `$1s="${newSt}"`);
-          }
-        }
-      }
-
-      // J列のnumFmt修正 (平日末日)
-      if (!isSunday && day <= lastDay) {
-        const reJ = new RegExp(`(<c r="J${rowNum}"[^>]*?)\\bs="(\\d+)"`);
-        const jm = xml.match(reJ);
-        if (jm) {
-          const newSt = createTimeNumFmtVariant(parseInt(jm[2]));
+      // J列のnumFmt修正 (平日のJセルは小数でなく時刻形式で表示する)
+      const reJ = new RegExp(`(<c r="J${rowNum}"[^>]*?)\\bs="(\\d+)"`);
+      const jm = xml.match(reJ);
+      if (jm) {
+        const newSt = createTimeNumFmtVariant(parseInt(jm[2]));
+        if (newSt !== parseInt(jm[2])) {
           xml = xml.replace(reJ, `$1s="${newSt}"`);
         }
       }
 
-      if (day > lastDay) continue;
       const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       const report = reportMap.get(dateStr);
       if (!report) continue;
@@ -326,12 +269,14 @@ export async function POST(req: NextRequest) {
     console.log(`[export] sheet ${zipEntryName}: replacements done`);
   }
 
-  // styles.xml を更新した xfEntries で再記述
-  stylesXml = stylesXml.replace(
-    /<cellXfs count="\d+">[\s\S]*?<\/cellXfs>/,
-    `<cellXfs count="${xfEntries.length}">${xfEntries.join("")}</cellXfs>`
-  );
-  zip.file("xl/styles.xml", stylesXml);
+  // styles.xml を更新した xfEntries で更新 (J列用numFmtバリアント分だけ追加)
+  if (xfEntries.length > 0) {
+    const updatedStyles = stylesXml.replace(
+      /<cellXfs count="\d+">[\s\S]*?<\/cellXfs>/,
+      `<cellXfs count="${xfEntries.length}">${xfEntries.join("")}</cellXfs>`
+    );
+    zip.file("xl/styles.xml", updatedStyles);
+  }
 
   console.log(`[export] all done, returning buffer`);
 
