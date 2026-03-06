@@ -147,6 +147,31 @@ export async function POST(req: NextRequest) {
   ws.getCell("E8").value = month;
   ws.getCell("J9").value = user.name;
 
+  // 動的背景色設定 (E〜M列)
+  // JSZip側でs属性を一括置換すると罫線や表示形式が消えるため、
+  // ExcelJSで「背景色(fill)」のみを設定しておく。
+  const DATA_START_ROW = 15;
+  const colsEM = ["E", "F", "G", "H", "I", "J", "K", "L", "M"];
+
+  // ひな形にある日曜用(E15)と平日用(E16)の背景色設定を抽出
+  const sundayFill = { ...ws.getCell("E15").fill };
+  const weekdayFill = { ...ws.getCell("E16").fill };
+
+  for (let day = 1; day <= 31; day++) {
+    const rowNum = DATA_START_ROW + day - 1;
+    let isSunday = false;
+    if (day <= lastDay) {
+      const d = new Date(year, month - 1, day);
+      isSunday = d.getDay() === 0;
+    }
+    const targetFill = isSunday ? sundayFill : weekdayFill;
+
+    for (const c of colsEM) {
+      const cell = ws.getCell(`${c}${rowNum}`);
+      cell.fill = targetFill; // 背景色のみを上書き、フォントや罫線等は維持される
+    }
+  }
+
   // ※ 時刻データは ExcelJS では書かず、後段の JSZip XML 書換えで直接対応する。
   //   ExcelJS は共有文字列型セル("：")への数値上書き時にスタイルを失うことがあるため。
 
@@ -191,47 +216,12 @@ export async function POST(req: NextRequest) {
       ["J", "end_time"],
     ];
 
-    // 動的スタイル用: テンプレートの日曜用(Row15)・平日用(Row16)のスタイルIDを抽出
-    const colsEM = ["E", "F", "G", "H", "I", "J", "K", "L", "M"];
-    const sundayStyles: Record<string, string> = {};
-    const weekdayStyles: Record<string, string> = {};
-    for (const c of colsEM) {
-      const match15 = xml.match(new RegExp(`<c r="${c}15"[^>]* s="(\\d+)"`));
-      if (match15) sundayStyles[c] = match15[1];
-      const match16 = xml.match(new RegExp(`<c r="${c}16"[^>]* s="(\\d+)"`));
-      if (match16) weekdayStyles[c] = match16[1];
-    }
-
-    // 1〜31日まで全ての行 (15〜45行目) のスタイル(背景色)を実際の曜日に合わせて更新
-    for (let day = 1; day <= 31; day++) {
-      const rowNum = DATA_START_ROW + day - 1;
-
-      let isSunday = false;
-      if (day <= lastDay) {
-        const d = new Date(year, month - 1, day);
-        isSunday = d.getDay() === 0;
-      } // 月の末日を超えた不要行は平日(白)スタイルにする
-
-      const targetStyles = isSunday ? sundayStyles : weekdayStyles;
-
-      // E〜M列のスタイルを一括適用 (スタイルIDに置き換え)
-      for (const c of colsEM) {
-        if (!targetStyles[c]) continue;
-        const replaceStyle = targetStyles[c];
-        const reStyle = new RegExp(`(<c r="${c}${rowNum}"[^>]*?)\\bs="\\d+"`);
-        if (reStyle.test(xml)) {
-          xml = xml.replace(reStyle, `$1s="${replaceStyle}"`);
-        } else {
-          const reAdd = new RegExp(`(<c r="${c}${rowNum}")(>|\\s)`);
-          xml = xml.replace(reAdd, `$1 s="${replaceStyle}"$2`);
-        }
-      }
-
-      if (day > lastDay) continue;
-
+    for (let day = 1; day <= lastDay; day++) {
       const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       const report = reportMap.get(dateStr);
       if (!report) continue;
+
+      const rowNum = DATA_START_ROW + day - 1;
 
       for (const [col, field] of COL_MAP) {
         const val = report[field];
