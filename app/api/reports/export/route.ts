@@ -246,6 +246,27 @@ export async function POST(req: NextRequest) {
       xml = xml.replace(/<v>NaN<\/v>/g, "<v>0</v>");
     }
 
+    // K列の数式修正: テンプレートの数式 F-E+J-I を正しい F-E+J-H に修正
+    // shared formula のマスターセル (K15) の数式を修正
+    xml = xml.replace(
+      /(<c r="K15"[^>]*><f[^>]*>)F15-E15\+J15-I15(<\/f>)/,
+      "$1F15-E15+J15-H15$2"
+    );
+
+    // J列のスタイル修正: E列のs属性値を取得してJ列に適用
+    // (ExcelJS再保存でスタイルIDがずれ、J列の時刻フォーマットが失われるため)
+    const eStyleMatch = xml.match(/<c r="E15" s="(\d+)"/);
+    if (eStyleMatch) {
+      const timeStyle = eStyleMatch[1];
+      // J列のセル (J15〜J45) のs属性を時刻フォーマットのスタイルに統一
+      for (let row = 15; row <= 45; row++) {
+        const reJ = new RegExp(`(<c r="J${row}" )s="\\d+"`);
+        if (reJ.test(xml)) {
+          xml = xml.replace(reJ, `$1s="${timeStyle}"`);
+        }
+      }
+    }
+
     zip.file(zipEntryName, xml);
     console.log(`[export] sheet ${zipEntryName}: replacements done`);
   }
