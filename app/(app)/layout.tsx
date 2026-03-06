@@ -40,6 +40,12 @@ export default async function AppLayout({
                 >
                   ユーザー管理
                 </Link>
+                <Link
+                  href="/admin/maintenance"
+                  className="text-blue-600 hover:underline"
+                >
+                  データ管理
+                </Link>
               </nav>
             )}
           </div>

@@ -83,9 +83,6 @@ export default function AdminReportsPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"info" | "error">("info");
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [bulkDeleteStart, setBulkDeleteStart] = useState("");
-  const [bulkDeleteEnd, setBulkDeleteEnd] = useState("");
 
   const days = getDaysInMonth(year, month);
   const from = days[0];
@@ -201,47 +198,6 @@ export default function AdminReportsPage() {
     }
   }
 
-  async function handleBulkDelete() {
-    if (!bulkDeleteStart || !bulkDeleteEnd) {
-      alert("開始日と終了日を指定してください。");
-      return;
-    }
-    if (!confirm(`${bulkDeleteStart} から ${bulkDeleteEnd} までの全ユーザーの日報を一括削除します。よろしいですか？\n※この操作は取り消せません。`)) {
-      return;
-    }
-
-    setIsBulkDeleting(true);
-    setMessage("");
-
-    try {
-      const res = await fetch("/api/reports/bulk-delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          startDate: bulkDeleteStart,
-          endDate: bulkDeleteEnd,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        setMessage(data.error ?? "削除に失敗しました。");
-        setMessageType("error");
-        return;
-      }
-
-      setMessage("指定期間の日報を削除しました。");
-      setMessageType("info");
-      setBulkDeleteStart("");
-      setBulkDeleteEnd("");
-      fetchReports();
-    } catch {
-      setMessage("通信エラーが発生しました。");
-      setMessageType("error");
-    } finally {
-      setIsBulkDeleting(false);
-    }
-  }
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
 
@@ -282,30 +238,6 @@ export default function AdminReportsPage() {
             {selectedUser.name}
           </span>
         )}
-
-        <div className="ml-auto flex items-center gap-2 rounded-lg bg-red-50 p-3 border border-red-100">
-          <span className="text-sm font-bold text-red-700">一括削除:</span>
-          <input
-            type="date"
-            value={bulkDeleteStart}
-            onChange={(e) => setBulkDeleteStart(e.target.value)}
-            className="rounded border border-red-200 px-2 py-1 text-sm text-gray-900"
-          />
-          <span className="text-gray-400">〜</span>
-          <input
-            type="date"
-            value={bulkDeleteEnd}
-            onChange={(e) => setBulkDeleteEnd(e.target.value)}
-            className="rounded border border-red-200 px-2 py-1 text-sm text-gray-900"
-          />
-          <button
-            onClick={handleBulkDelete}
-            disabled={isBulkDeleting}
-            className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-          >
-            {isBulkDeleting ? "削除中..." : "実行"}
-          </button>
-        </div>
       </div>
 
       {message && (
