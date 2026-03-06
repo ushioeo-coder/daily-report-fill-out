@@ -154,16 +154,6 @@ export default function AdminReportsPage() {
     });
   }
 
-  /** スマートな時間入力処理 (0830 -> 08:30) */
-  function handleSmartTimeChange(date: string, field: keyof Report, value: string) {
-    let finalValue = value;
-    if (/^\d{4}$/.test(value)) {
-      finalValue = value.slice(0, 2) + ":" + value.slice(2);
-    }
-    const mins = hhmmToMinutes(finalValue);
-    updateLocal(date, field, mins);
-  }
-
   async function saveRow(date: string) {
     // 未来日チェック
     if (isFutureDate(date)) {
@@ -312,58 +302,43 @@ export default function AdminReportsPage() {
                     return (
                       <td key={col.key} className="px-1 py-1">
                         <div className="group relative flex items-center">
-                          {isMobile ? (
-                            <input
-                              type="time"
-                              value={timeValue}
-                              onChange={(e) => updateLocal(date, col.key, hhmmToMinutes(e.target.value))}
-                              onClick={(e) => {
+                          <input
+                            type="time"
+                            value={timeValue}
+                            onChange={(e) => updateLocal(date, col.key, hhmmToMinutes(e.target.value))}
+                            onClick={(e) => {
+                              // スマホのみ枠内クリックでピッカーを強制起動（PCはキーボード入力を優先）
+                              if (isMobile) {
                                 try { (e.target as any).showPicker(); } catch (err) { }
+                              }
+                            }}
+                            disabled={future}
+                            className="w-[7rem] rounded border px-2 py-1 text-xs text-gray-900 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 pr-8 transition-colors hover:border-blue-400"
+                          />
+                          {/* PC利用者向けの大きな時計アイコンボタン */}
+                          {!isMobile && !future && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                const input = e.currentTarget.previousSibling as HTMLInputElement;
+                                try { (input as any).showPicker(); } catch (err) { }
                               }}
-                              disabled={future}
-                              className="w-[6.5rem] rounded border px-2 py-1 text-xs text-gray-900 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 pr-5 transition-colors hover:border-blue-400"
-                            />
-                          ) : (
-                            <div className="relative flex items-center w-[7rem]">
-                              <input
-                                type="text"
-                                placeholder="08:30"
-                                value={timeValue}
-                                onChange={(e) => handleSmartTimeChange(date, col.key, e.target.value)}
-                                disabled={future}
-                                className="w-full rounded border px-2 py-1 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 pr-8 transition-colors hover:border-blue-400"
-                              />
-                              <input
-                                type="time"
-                                className="absolute opacity-0 pointer-events-none w-0 h-0"
-                                value={timeValue}
-                                onChange={(e) => updateLocal(date, col.key, hhmmToMinutes(e.target.value))}
-                              />
-                              {!future && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    const hiddenInput = e.currentTarget.previousSibling as HTMLInputElement;
-                                    try { (hiddenInput as any).showPicker(); } catch (err) { }
-                                  }}
-                                  className="absolute right-6 p-1 text-gray-400 hover:text-blue-500 hidden group-hover:block"
-                                  title="時計から選択"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                </button>
-                              )}
-                              {timeValue && !future && (
-                                <button
-                                  onClick={() => updateLocal(date, col.key, null)}
-                                  className="absolute right-1 p-1 text-gray-300 hover:text-red-500 hidden group-hover:block"
-                                  title="クリア"
-                                >
-                                  ×
-                                </button>
-                              )}
-                            </div>
+                              className="absolute right-6 p-1 text-gray-400 hover:text-blue-500 hidden group-hover:block"
+                              title="時計から選択"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </button>
+                          )}
+                          {timeValue && !future && (
+                            <button
+                              onClick={() => updateLocal(date, col.key, null)}
+                              className="absolute right-1 p-1 text-gray-300 hover:text-red-500 hidden group-hover:block"
+                              title="クリア"
+                            >
+                              ×
+                            </button>
                           )}
                         </div>
                       </td>
