@@ -247,32 +247,42 @@ export default function ReportsPage() {
                 >
                   <td className="px-2 py-1 whitespace-nowrap">{dayNum}</td>
                   <td
-                    className={`px-2 py-1 whitespace-nowrap ${
-                      weekday === "日"
+                    className={`px-2 py-1 whitespace-nowrap ${weekday === "日"
                         ? "text-red-500"
                         : weekday === "土"
                           ? "text-blue-500"
                           : ""
-                    }`}
+                      }`}
                   >
                     {weekday}
                   </td>
                   {TIME_COLUMNS.map((col) => (
                     <td key={col.key} className="px-1 py-1">
-                      <input
-                        type="time"
-                        value={
-                          report?.[col.key] != null
-                            ? minutesToHHMM(report[col.key] as number)
-                            : ""
-                        }
-                        onChange={(e) => {
-                          const mins = hhmmToMinutes(e.target.value);
-                          updateLocal(date, col.key, mins);
-                        }}
-                        disabled={future}
-                        className="w-[6rem] rounded border px-1 py-0.5 text-xs text-gray-900 disabled:bg-gray-100"
-                      />
+                      <div className="group relative flex items-center">
+                        <input
+                          type="time"
+                          value={
+                            report?.[col.key] != null
+                              ? minutesToHHMM(report[col.key] as number)
+                              : ""
+                          }
+                          onChange={(e) => {
+                            const mins = hhmmToMinutes(e.target.value);
+                            updateLocal(date, col.key, mins);
+                          }}
+                          disabled={future}
+                          className="w-[6rem] rounded border px-1 py-0.5 text-xs text-gray-900 disabled:bg-gray-100 pr-5"
+                        />
+                        {report?.[col.key] != null && !future && (
+                          <button
+                            onClick={() => updateLocal(date, col.key, null)}
+                            className="absolute right-1 hidden text-gray-400 hover:text-red-500 group-hover:block"
+                            title="クリア"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
                     </td>
                   ))}
                   <td className="px-2 py-1 whitespace-nowrap text-gray-700">
