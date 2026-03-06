@@ -96,10 +96,17 @@ export async function POST(req: NextRequest) {
     .order("report_date", { ascending: true });
 
   if (reportsError) {
+    console.error("[export] DB error:", reportsError);
     return NextResponse.json(
       { error: "日報の取得に失敗しました。" },
       { status: 500 }
     );
+  }
+
+  console.log(`[export] user=${user.name} year=${year} month=${month} reports=${reports?.length ?? 0}`);
+  if (reports && reports.length > 0) {
+    const first = reports[0];
+    console.log(`[export] first report: date=${String(first.report_date).slice(0, 10)} start=${first.start_time} end=${first.end_time} site=${first.site_arrival_time}`);
   }
 
   // 日付→レポートのマップ作成
@@ -159,10 +166,12 @@ export async function POST(req: NextRequest) {
   // JSZip で XML を直接書き換え、t="s" を外して数値型に変換する。
   // =====================================================================
 
+  let totalReplacements = 0;
   for (const zipEntryName of Object.keys(zip.files)) {
     if (!/xl\/worksheets\/sheet\d+\.xml$/.test(zipEntryName)) continue;
 
     let xml = await zip.files[zipEntryName].async("string");
+    console.log(`[export] processing sheet: ${zipEntryName} (xml length: ${xml.length})`);
 
     // 時刻データ書込み (Day 1 = Row 15)
     const DATA_START_ROW = 15;
@@ -231,7 +240,9 @@ export async function POST(req: NextRequest) {
     }
 
     zip.file(zipEntryName, xml);
+    console.log(`[export] sheet ${zipEntryName}: replacements done`);
   }
+  console.log(`[export] all done, returning buffer`);
 
   const buffer = await zip.generateAsync({ type: "arraybuffer" });
 
