@@ -153,9 +153,17 @@ export async function POST(req: NextRequest) {
   const DATA_START_ROW = 15;
   const colsEM = ["E", "F", "G", "H", "I", "J", "K", "L", "M"];
 
-  // ひな形にある日曜用(E15)と平日用(E16)の背景色設定を抽出
-  const sundayFill = { ...ws.getCell("E15").fill };
-  const weekdayFill = { ...ws.getCell("E16").fill };
+  // ひな形にある日曜用(青)と平日用(白/透明)の背景色設定を直接定義する
+  // (ExcelJSのバグで別セルのfillを流用すると色情報が欠落するためリテラルを指定)
+  const sundayFill: ExcelJS.FillPattern = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF00B0F0" }
+  };
+  const weekdayFill: ExcelJS.FillPattern = {
+    type: "pattern",
+    pattern: "none"
+  };
 
   // ひな形から時刻用の表示形式(numFmt)を取得
   const timeNumFmt = ws.getCell("E15").numFmt || "[h]:mm;#;#";
