@@ -313,7 +313,7 @@ export default function AdminReportsPage() {
                               }
                             }}
                             disabled={future}
-                            className="w-[7rem] rounded border px-2 py-1 text-xs text-gray-900 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 pr-8 transition-colors hover:border-blue-400"
+                            className="w-[7.5rem] rounded border px-2 py-1 text-xs text-gray-900 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 pr-10 transition-colors hover:border-blue-400"
                           />
                           {/* PC利用者向けの大きな時計アイコンボタン */}
                           {!isMobile && !future && (
@@ -323,7 +323,7 @@ export default function AdminReportsPage() {
                                 const input = e.currentTarget.previousSibling as HTMLInputElement;
                                 try { (input as any).showPicker(); } catch (err) { }
                               }}
-                              className="absolute right-6 p-1 text-gray-400 hover:text-blue-500 hidden group-hover:block"
+                              className="absolute right-7 p-1 text-gray-400 hover:text-blue-500 hidden group-hover:block"
                               title="時計から選択"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
