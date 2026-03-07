@@ -334,7 +334,8 @@ export default function AdminReportsPage() {
                           {timeValue && !future && (
                             <button
                               onClick={() => updateLocal(date, col.key, null)}
-                              className="absolute right-1 p-1 text-gray-300 hover:text-red-500 hidden group-hover:block"
+                              className={`absolute right-1 text-gray-300 hover:text-red-500 ${isMobile ? "p-2 text-lg" : "p-1 hidden group-hover:block"
+                                }`}
                               title="クリア"
                             >
                               ×
