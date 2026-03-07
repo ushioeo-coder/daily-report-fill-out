@@ -16,7 +16,14 @@ export default async function AppLayout({
       <header className="border-b bg-white px-4 py-3 shadow-sm">
         <div className="mx-auto flex max-w-[90rem] items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-lg font-bold text-gray-800">日報管理</h1>
+            <img
+              src="/images/logo.png"
+              alt="株式会社ＥＮ ロゴ"
+              className="h-8 w-8 object-contain"
+            />
+            <h1 className="text-lg font-bold text-gray-800">
+              <span className="hidden sm:inline">株式会社ＥＮ </span>日報管理
+            </h1>
             <span className="text-sm text-gray-600">
               {session.name}({session.employee_id})
             </span>
