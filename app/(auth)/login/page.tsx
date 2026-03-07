@@ -99,7 +99,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow">
         <div className="mb-6 flex flex-col items-center">
           <img
-            src="/images/logo.png"
+            src="/logo.png"
             alt="株式会社ＥＮ ロゴ"
             className="mb-2 max-h-20 w-auto object-contain"
           />
