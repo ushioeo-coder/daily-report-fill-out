@@ -277,7 +277,7 @@ export default function ReportsPage() {
                               }
                             }}
                             disabled={future}
-                            className="w-[7.5rem] rounded border px-2 py-1 text-xs text-gray-900 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 pr-10 transition-colors hover:border-blue-400"
+                            className="w-[7.5rem] rounded border px-2 py-1 text-xs text-gray-900 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 pr-12 transition-colors hover:border-blue-400"
                           />
                           {/* PC利用者向けの大きな時計アイコンボタン */}
                           {!isMobile && !future && (
@@ -287,7 +287,7 @@ export default function ReportsPage() {
                                 const input = e.currentTarget.previousSibling as HTMLInputElement;
                                 try { (input as any).showPicker(); } catch (err) { }
                               }}
-                              className="absolute right-7 p-1 text-gray-400 hover:text-blue-500 hidden group-hover:block"
+                              className="absolute right-8 p-1 text-gray-400 hover:text-blue-500 hidden group-hover:block"
                               title="時計から選択"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -298,12 +298,13 @@ export default function ReportsPage() {
                           {timeValue && !future && (
                             <button
                               onClick={() => updateLocal(date, col.key, null)}
-                              className={`absolute right-1 text-gray-300 hover:text-red-500 ${
-                                isMobile ? "p-2 text-lg" : "p-1 hidden group-hover:block"
-                              }`}
-                              title="クリア"
+                              className={`absolute right-2 text-gray-400 hover:text-red-500 ${isMobile ? "p-2" : "p-1 hidden group-hover:block"
+                                }`}
+                              title="時間をクリア"
                             >
-                              ×
+                              <svg xmlns="http://www.w3.org/2000/svg" className={isMobile ? "h-5 w-5" : "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
                             </button>
                           )}
                         </div>
