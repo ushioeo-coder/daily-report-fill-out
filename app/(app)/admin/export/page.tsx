@@ -23,7 +23,7 @@ export default function AdminExportPage() {
       if (!res.ok) return;
       const data: User[] = await res.json();
       setUsers(data);
-      if (data.length > 0) setSelectedUserId(data[0].id);
+      if (data.length > 0) setSelectedUserId("all");
     })();
   }, []);
 
@@ -77,6 +77,7 @@ export default function AdminExportPage() {
             onChange={(e) => setSelectedUserId(e.target.value)}
             className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm text-gray-900"
           >
+            <option value="all">全ユーザーを一括出力 (シート分割)</option>
             {users.map((u) => (
               <option key={u.id} value={u.id}>
                 {u.employee_id} - {u.name}
