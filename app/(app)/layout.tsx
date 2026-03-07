@@ -19,7 +19,7 @@ export default async function AppLayout({
             <img
               src="/images/logo.png"
               alt="株式会社ＥＮ ロゴ"
-              className="h-8 w-8 object-contain"
+              className="h-8 w-auto max-w-[8rem] object-contain"
             />
             <h1 className="text-lg font-bold text-gray-800">
               <span className="hidden sm:inline">株式会社ＥＮ </span>日報管理

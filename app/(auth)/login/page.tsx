@@ -101,7 +101,7 @@ export default function LoginPage() {
           <img
             src="/images/logo.png"
             alt="株式会社ＥＮ ロゴ"
-            className="mb-2 h-16 w-16 object-contain"
+            className="mb-2 max-h-20 w-auto object-contain"
           />
           <h1 className="text-center text-xl font-bold text-gray-800">
             株式会社ＥＮ<br />
