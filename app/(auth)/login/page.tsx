@@ -97,9 +97,17 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow">
-        <h1 className="mb-6 text-center text-xl font-bold text-gray-800">
-          日報管理システム
-        </h1>
+        <div className="mb-6 flex flex-col items-center">
+          <img
+            src="/images/logo.png"
+            alt="株式会社ＥＮ ロゴ"
+            className="mb-2 h-16 w-16 object-contain"
+          />
+          <h1 className="text-center text-xl font-bold text-gray-800">
+            株式会社ＥＮ<br />
+            <span className="text-lg">日報管理システム</span>
+          </h1>
+        </div>
 
         <form onSubmit={isChangeMode ? handleChangePassword : handleLogin} className="space-y-4">
           <div>
