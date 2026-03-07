@@ -17,7 +17,7 @@ export default async function AppLayout({
         <div className="mx-auto flex max-w-[90rem] items-center justify-between">
           <div className="flex items-center gap-4">
             <img
-              src="/images/logo.png"
+              src="/logo.png"
               alt="株式会社ＥＮ ロゴ"
               className="h-8 w-auto max-w-[8rem] object-contain"
             />

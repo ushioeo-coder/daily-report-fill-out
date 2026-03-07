@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>株式会社ＥＮ 日報管理システム 取扱説明書</title>
+    <style>
+        /* 基本設定 */
+        body {
+            font-family: 'Helvetica Neue', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* 印刷時の設定 */
+        @media print {
+            body {
+                padding: 0;
+                max-width: 100%;
+            }
+
+            .page-break {
+                page-break-before: always;
+            }
+
+            .no-print {
+                display: none;
+            }
+        }
+
+        /* 見出しスタイル */
+        h1 {
+            font-size: 28px;
+            border-bottom: 3px solid #2563eb;
+            color: #1e3a8a;
+            padding-bottom: 10px;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h2 {
+            font-size: 20px;
+            background-color: #f1f5f9;
+            padding: 10px 15px;
+            border-left: 5px solid #3b82f6;
+            margin-top: 40px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        h3 {
+            font-size: 16px;
+            color: #1e40af;
+            margin-top: 25px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 5px;
+        }
+
+        /* ボックススタイル */
+        .note {
+            background-color: #fefce8;
+            border-left: 4px solid #ca8a04;
+            padding: 12px 15px;
+            margin: 20px 0;
+            font-size: 14px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .warning {
+            background-color: #fef2f2;
+            border-left: 4px solid #dc2626;
+            padding: 12px 15px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #991b1b;
+            border-radius: 0 4px 4px 0;
+        }
+
+        /* 画像プレースホルダー */
+        .img-placeholder {
+            background-color: #f8fafc;
+            border: 2px dashed #94a3b8;
+            color: #64748b;
+            height: 250px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .img-placeholder span {
+            font-size: 12px;
+            font-weight: normal;
+            margin-top: 8px;
+            color: #94a3b8;
+        }
+
+        /* テーブルスタイル */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+
+        th,
+        td {
+            border: 1px solid #cbd5e1;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f8fafc;
+            color: #334155;
+            font-weight: bold;
+            width: 30%;
+        }
+
+        /* 図解（フローチャート）用 */
+        .workflow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 20px 0;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .step {
+            text-align: center;
+            flex: 1;
+        }
+
+        .step-box {
+            background: #fff;
+            border: 2px solid #3b82f6;
+            color: #1e3a8a;
+            padding: 15px 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            font-size: 14px;
+        }
+
+        .arrow {
+            color: #cbd5e1;
+            font-size: 24px;
+            font-weight: bold;
+            padding: 0 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div style="text-align: center; margin-bottom: 10px;">
+        <img src="../public/logo.png" alt="ロゴ" style="max-height: 80px; width: auto; object-fit: contain;">
+    </div>
+    <h1>株式会社ＥＮ<br>日報管理システム 取扱説明書</h1>
+
+    <p>本マニュアルでは、日報管理システムの基本的な操作方法、日報の入力、および管理者向けの各種機能について説明します。</p>
+
+
+
+    <!-- ========================================== -->
+    <h2>1. ログイン方法</h2>
+    <p>システムを利用するには、各個人に発行された社員番号とパスワードでログインする必要があります。</p>
+
+    <div class="img-placeholder">
+        [ここにログイン画面のキャプチャ画像を貼り付けてください]
+        <span>※HTMLの &lt;img src="..."&gt; に差し替えてください</span>
+    </div>
+
+    <ol>
+        <li>ブラウザで指定されたURL（ログイン画面）にアクセスします。</li>
+        <li><strong>「社員番号」</strong>と<strong>「パスワード」</strong>を入力します。<br>※初期パスワードは管理者にご確認ください。</li>
+        <li><strong>「ログイン」</strong>ボタンをクリックします。</li>
+    </ol>
+
+    <!-- ========================================== -->
+    <div class="page-break"></div>
+    <h2>2. 日報の入力（一般ユーザー向け）</h2>
+    <p>日報はPC、スマートフォンのどちらからでも入力可能です。ブラウザからアクセスするだけで自動的に最適な画面が表示されます。</p>
+
+    <h3>PCでの入力方法（キーボード推奨）</h3>
+    <div class="img-placeholder">
+        [ここにPC版のカレンダー/入力画面の画像を貼り付けてください]
+    </div>
+    <ul>
+        <li>入力したい日付の入力欄（①出社 〜 ⑥退勤等）をクリックし、<strong>キーボードから直接「0800」のように時間を入力</strong>できます。自動で「08:00」に変換されます。</li>
+        <li>入力した時間を消す場合は、一番右側に表示される<strong>「 × 」ボタン</strong>をクリックしてください。</li>
+        <li>行の右端にある<strong>「保存」</strong>ボタンを押すと、その日の日報がサーバーに保存されます。</li>
+    </ul>
+
+    <h3>スマートフォンでの入力方法（タップ操作推奨）</h3>
+    <div class="img-placeholder">
+        [ここにスマホ版の時間入力（ピッカー等）の画像を貼り付けてください]
+    </div>
+    <ul>
+        <li>入力枠の中を<strong>どこでもタップするだけ</strong>で、スマホ標準の時計ピッカー（ダイヤル式）が起動します。</li>
+        <li><strong>「 × 」ボタン</strong>は常に表示され、指でタップしやすい大きさに調整されています。</li>
+    </ul>
+
+    <div class="note">
+        <strong>自動計算について</strong><br>
+        「現場作業時間」や「残業時間」は、入力した時間からシステムが自動的に計算します（保存ボタンを押すと反映されます）。
+    </div>
+
+    <!-- ========================================== -->
+    <div class="page-break"></div>
+    <h2>3. 管理者機能の流れ（給与計算・月末処理）</h2>
+    <p>管理者権限を持つユーザーは、画面上部の「管理者メニュー」から全従業員の日報データを確認・出力できます。</p>
+
+    <h3>■ 月末の処理フロー（図解）</h3>
+    <div class="workflow">
+        <div class="step">
+            <div class="step-box">全社員の<br>入力完了確認</div>
+        </div>
+        <div class="arrow">▶</div>
+        <div class="step">
+            <div class="step-box">未入力の<br>修正・代行入力</div>
+        </div>
+        <div class="arrow">▶</div>
+        <div class="step">
+            <div class="step-box">Excel一括出力<br>(指定フォーム)</div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <h2>4. 管理者機能の詳細手順</h2>
+
+    <h3>① 全社員の日報の確認・代行入力</h3>
+    <div class="img-placeholder">
+        [ここに「管理者用 日報一覧」の画面キャプチャを貼り付け]
+    </div>
+    <p>上部メニューの「日報一覧（管理）」を開くと、全ユーザーの日報を閲覧できます。画面のドロップダウンリストから確認したい対象のユーザーを選択します。必要に応じて、管理者が直接時間を修正・保存（代行入力）することも可能です。</p>
+
+    <h3>② Excelでの一括出力</h3>
+    <div class="img-placeholder">
+        [ここに「Excel出力」の画面キャプチャを貼り付け]
+    </div>
+    <p>上部メニューの「Excel出力」から、指定した月のデータをダウンロードできます。</p>
+    <ul>
+        <li><strong>抽出対象の選択</strong>：一人ずつだけでなく、「全ユーザーを一括出力 (シート分割)」を選択することで、全従業員のデータを1つのファイルにまとめて出力できます。</li>
+        <li><strong>シート構成</strong>：一括出力の場合、Excelファイル内のタブ（シート）が従業員名ごとに自動で分かれます。</li>
+        <li>出力したい<strong>「年」「月」</strong>を選択し、<strong>「Excel をダウンロード」</strong>ボタンをクリックしてください。</li>
+    </ul>
+
+    <h3>③ ユーザー管理・パスワードリセット</h3>
+    <p>上部メニューの「ユーザー管理」から、従業員の追加・削除が行えます。</p>
+    <table>
+        <tr>
+            <th>パスワードの再設定</th>
+            <td>従業員がパスワードを忘れた場合、管理者が「パスワードリセット」ボタンから新しいパスワード（英数6文字以上）を強制的に再設定できます。</td>
+        </tr>
+        <tr>
+            <th>アカウントの削除</th>
+            <td>退職などの理由で不要になったアカウントを削除できます。<br>※削除すると、そのユーザーが過去に入力した日報データもすべて削除されるためご注意ください。</td>
+        </tr>
+    </table>
+
+    <h3>④ データ一括削除（メンテナンス機能）</h3>
+    <div class="warning">
+        <strong>【注意】データは復元できません！</strong><br>
+        この操作は、システムのデータ容量（500MB制限等）を節約するために、過去の古いデータを一掃するためのものです。実行前には必ず「② Excelでの一括出力」を利用してバックアップを保存してください。
+    </div>
+    <div class="img-placeholder">
+        [ここに「データメンテナンス」の画面キャプチャを貼り付け]
+    </div>
+    <p>上部メニューの「データ管理」から、期間を指定してすべての日報データを完全に削除できます。</p>
+
+</body>
+
+</html>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "@/lib/constants";
 
 /** 認証不要のパス */
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/change-password", "/api/health"];
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/change-password", "/api/health", "/logo.png"];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
