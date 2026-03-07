@@ -304,6 +304,7 @@ export default function AdminReportsPage() {
                         <div className="group relative flex items-center">
                           <input
                             type="time"
+                            step="300"
                             value={timeValue}
                             onChange={(e) => updateLocal(date, col.key, hhmmToMinutes(e.target.value))}
                             onClick={(e) => {
