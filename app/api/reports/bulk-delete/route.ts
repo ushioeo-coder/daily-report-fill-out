@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
         if (error) {
             console.error("Bulk delete error:", error);
-            return NextResponse.json({ error: "データの削除に失敗しました。" }, { status: 500 });
+            return NextResponse.json({ error: error.message || JSON.stringify(error) || "データの削除に失敗しました。" }, { status: 500 });
         }
 
         return NextResponse.json({ ok: true });
