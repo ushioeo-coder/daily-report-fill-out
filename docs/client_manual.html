@@ -31,6 +31,20 @@
             }
         }
 
+        h1,
+        h2,
+        h3 {
+            break-after: avoid;
+            page-break-after: avoid;
+        }
+
+        /* セクションのまとまりを維持 */
+        section {
+            page-break-inside: avoid;
+            break-inside: avoid;
+            margin-bottom: 30px;
+        }
+
         /* 見出しスタイル */
         h1 {
             font-size: 28px;
@@ -172,129 +186,143 @@
 
 
     <!-- ========================================== -->
-    <h2>1. ログイン方法</h2>
-    <p>システムを利用するには、各個人に発行された社員番号とパスワードでログインする必要があります。</p>
+    <section>
+        <h2>1. ログイン方法</h2>
+        <p>システムを利用するには、各個人に発行された社員番号とパスワードでログインする必要があります。</p>
 
-    <div style="text-align: center; margin: 20px 0;">
-        <img src="../images/login.png" alt="ログイン画面"
-            style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-    </div>
+        <div style="text-align: center; margin: 20px 0;">
+            <img src="../images/login.png" alt="ログイン画面"
+                style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        </div>
 
-    <ol>
-        <li>ブラウザで指定されたURL（ログイン画面）にアクセスします。</li>
-        <li><strong>「社員番号」</strong>と<strong>「パスワード」</strong>を入力します。<br>※初期パスワードは管理者にご確認ください。</li>
-        <li><strong>「ログイン」</strong>ボタンをクリックします。</li>
-    </ol>
+        <ol>
+            <li>ブラウザで指定されたURL（ログイン画面）にアクセスします。</li>
+            <li><strong>「社員番号」</strong>と<strong>「パスワード」</strong>を入力します。<br>※初期パスワードは管理者にご確認ください。</li>
+            <li><strong>「ログイン」</strong>ボタンをクリックします。</li>
+        </ol>
+    </section>
 
     <!-- ========================================== -->
-    <div class="page-break"></div>
-    <h2>2. 日報の入力（一般ユーザー向け）</h2>
-    <p>日報はPC、スマートフォンのどちらからでも入力可能です。ブラウザからアクセスするだけで自動的に最適な画面が表示されます。</p>
+    <section>
+        <h2>2. 日報の入力（一般ユーザー向け）</h2>
+        <p>日報はPC、スマートフォンのどちらからでも入力可能です。ブラウザからアクセスするだけで自動的に最適な画面が表示されます。</p>
 
-    <h3>PCでの入力方法</h3>
-    <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; margin: 20px 0;">
-        <img src="../images/input_pc.png" alt="PC版入力画面1"
-            style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <img src="../images/input_pc2.png" alt="PC版入力画面2"
-            style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <img src="../images/input_pc3.png" alt="PC版入力画面3"
-            style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-    </div>
-    <ul>
-        <li>入力したい日付の入力欄（①出社 〜 ⑥退勤等）をクリックし、<strong>キーボードから直接「0800」のように時間を入力</strong>できます。自動で「08:00」に変換されます。</li>
-        <li>また、入力枠内の<strong>時計アイコンをクリック</strong>することで、マウス操作で時間を選択することも可能です。</li>
-        <li>入力した時間を消す場合は、<strong>各フレーム右側</strong>に表示される<strong>「 × 」ボタン</strong>をクリックしてください。</li>
-        <li>行の右端にある<strong>「保存」</strong>ボタンを押すと、その日の日報がサーバーに保存されます。</li>
-    </ul>
+        <h3>PCでの入力方法</h3>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; margin: 20px 0;">
+            <img src="../images/input_pc.png" alt="PC版入力画面1"
+                style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <img src="../images/input_pc2.png" alt="PC版入力画面2"
+                style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <img src="../images/input_pc3.png" alt="PC版入力画面3"
+                style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        </div>
+        <ul>
+            <li>入力したい日付の入力欄（①出社 〜 ⑥退勤等）をクリックし、<strong>キーボードから直接「0800」のように時間を入力</strong>できます。自動で「08:00」に変換されます。</li>
+            <li>また、入力枠内の<strong>時計アイコンをクリック</strong>することで、マウス操作で時間を選択することも可能です。</li>
+            <li>入力した時間を消す場合は、<strong>各フレーム右側</strong>に表示される<strong>「 × 」ボタン</strong>をクリックしてください。</li>
+            <li>行の右端にある<strong>「保存」</strong>ボタンを押すと、その日の日報がサーバーに保存されます。</li>
+        </ul>
+    </section>
 
-    <h3>スマートフォンでの入力方法</h3>
-    <div style="display: flex; justify-content: center; gap: 20px; margin: 20px 0; flex-wrap: wrap;">
-        <img src="../images/input_mobile.jpg" alt="スマホ版入力画面1"
-            style="max-width: 45%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <img src="../images/input_mobile2.jpg" alt="スマホ版入力画面2"
-            style="max-width: 45%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-    </div>
-    <ul>
-        <li>入力枠の中を<strong>どこでもタップするだけ</strong>で、スマホ標準の時計ピッカー（ダイヤル式）が起動します。</li>
-        <li><strong>「 × 」ボタン</strong>は常に表示され、指でタップしやすい大きさに調整されています。</li>
-    </ul>
+    <section>
+        <h3>スマートフォンでの入力方法</h3>
+        <div style="display: flex; justify-content: center; gap: 20px; margin: 20px 0; flex-wrap: wrap;">
+            <img src="../images/input_mobile.jpg" alt="スマホ版入力画面1"
+                style="max-width: 45%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <img src="../images/input_mobile2.jpg" alt="スマホ版入力画面2"
+                style="max-width: 45%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        </div>
+        <ul>
+            <li>入力枠の中を<strong>どこでもタップするだけ</strong>で、スマホ標準の時計ピッカー（ダイヤル式）が起動します。</li>
+            <li><strong>「 × 」ボタン</strong>は常に表示され、指でタップしやすい大きさに調整されています。</li>
+        </ul>
 
-    <div class="note">
-        <strong>自動計算について</strong><br>
-        「現場作業時間」や「残業時間」は、入力した時間からシステムが自動的に計算します（保存ボタンを押すと反映されます）。
-    </div>
+        <div class="note">
+            <strong>自動計算について</strong><br>
+            「現場作業時間」や「残業時間」は、入力した時間からシステムが自動的に計算します（保存ボタンを押すと反映されます）。
+        </div>
+    </section>
 
     <!-- ========================================== -->
-    <div class="page-break"></div>
-    <h2>3. 管理者機能の流れ</h2>
-    <p>管理者権限を持つユーザーは、画面上部の「管理者メニュー」から全従業員の日報データを確認・出力できます。</p>
+    <section>
+        <h2>3. 管理者機能の流れ</h2>
+        <p>管理者権限を持つユーザーは、画面上部の「管理者メニュー」から全従業員の日報データを確認・出力できます。</p>
 
-    <h3>■ 月末の処理フロー（図解）</h3>
-    <div class="workflow">
-        <div class="step">
-            <div class="step-box">全社員の<br>入力完了確認</div>
+        <h3>■ 月末の処理フロー（図解）</h3>
+        <div class="workflow">
+            <div class="step">
+                <div class="step-box">全社員の<br>入力完了確認</div>
+            </div>
+            <div class="arrow">▶</div>
+            <div class="step">
+                <div class="step-box">未入力の<br>修正・代行入力</div>
+            </div>
+            <div class="arrow">▶</div>
+            <div class="step">
+                <div class="step-box">Excel一括出力<br>(指定フォーム)</div>
+            </div>
         </div>
-        <div class="arrow">▶</div>
-        <div class="step">
-            <div class="step-box">未入力の<br>修正・代行入力</div>
+    </section>
+
+    <section>
+        <h2>4. 管理者機能の詳細手順</h2>
+
+        <h3>① 全社員の日報の確認・代行入力</h3>
+        <div style="text-align: center; margin: 20px 0;">
+            <img src="../images/admin_list.png" alt="管理者用日報一覧"
+                style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
         </div>
-        <div class="arrow">▶</div>
-        <div class="step">
-            <div class="step-box">Excel一括出力<br>(指定フォーム)</div>
+        <p>上部メニューの「日報一覧（管理）」を開くと、全ユーザーの日報を閲覧できます。画面のドロップダウンリストから確認したい対象のユーザーを選択します。必要に応じて、管理者が直接時間を修正・保存（代行入力）することも可能です。
+        </p>
+    </section>
+
+    <section>
+        <h3>② Excelでの一括出力</h3>
+        <div style="display: flex; justify-content: center; gap: 20px; margin: 20px 0; flex-wrap: wrap;">
+            <img src="../images/export.png" alt="Excel出力画面1"
+                style="max-width: 45%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <img src="../images/export2.png" alt="Excel出力画面2"
+                style="max-width: 45%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
         </div>
-    </div>
+        <p>上部メニューの「Excel出力」から、指定した月のデータをダウンロードできます。</p>
+        <ul>
+            <li><strong>抽出対象の選択</strong>：一人ずつだけでなく、「全ユーザーを一括出力 (シート分割)」を選択することで、全従業員のデータを1つのファイルにまとめて出力できます。</li>
+            <li><strong>シート構成</strong>：一括出力の場合、Excelファイル内のタブ（シート）が従業員名ごとに自動で分かれます。</li>
+            <li>出力したい<strong>「年」「月」</strong>を選択し、<strong>「Excel をダウンロード」</strong>ボタンをクリックしてください。</li>
+        </ul>
+    </section>
 
-    <!-- ========================================== -->
-    <h2>4. 管理者機能の詳細手順</h2>
+    <section>
+        <h3>③ ユーザー管理</h3>
+        <div style="text-align: center; margin: 20px 0;">
+            <img src="../images/user_list.png" alt="ユーザー管理画面"
+                style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        </div>
+        <p>上部メニューの「ユーザー管理」から、従業員の追加・削除が行えます。</p>
+        <table>
+            <tr>
+                <th>パスワードの再設定</th>
+                <td>従業員がパスワードを忘れた場合、管理者が「パスワードリセット」ボタンから新しいパスワード（英数6文字以上）を強制的に再設定できます。</td>
+            </tr>
+            <tr>
+                <th>アカウントの削除</th>
+                <td>退職などの理由で不要になったアカウントを削除できます。<br>※削除すると、そのユーザーが過去に入力した日報データもすべて削除されるためご注意ください。</td>
+            </tr>
+        </table>
+    </section>
 
-    <h3>① 全社員の日報の確認・代行入力</h3>
-    <div style="text-align: center; margin: 20px 0;">
-        <img src="../images/admin_list.png" alt="管理者用日報一覧"
-            style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-    </div>
-    <p>上部メニューの「日報一覧（管理）」を開くと、全ユーザーの日報を閲覧できます。画面のドロップダウンリストから確認したい対象のユーザーを選択します。必要に応じて、管理者が直接時間を修正・保存（代行入力）することも可能です。</p>
-
-    <h3>② Excelでの一括出力</h3>
-    <div style="display: flex; justify-content: center; gap: 20px; margin: 20px 0; flex-wrap: wrap;">
-        <img src="../images/export.png" alt="Excel出力画面1"
-            style="max-width: 45%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <img src="../images/export2.png" alt="Excel出力画面2"
-            style="max-width: 45%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-    </div>
-    <p>上部メニューの「Excel出力」から、指定した月のデータをダウンロードできます。</p>
-    <ul>
-        <li><strong>抽出対象の選択</strong>：一人ずつだけでなく、「全ユーザーを一括出力 (シート分割)」を選択することで、全従業員のデータを1つのファイルにまとめて出力できます。</li>
-        <li><strong>シート構成</strong>：一括出力の場合、Excelファイル内のタブ（シート）が従業員名ごとに自動で分かれます。</li>
-        <li>出力したい<strong>「年」「月」</strong>を選択し、<strong>「Excel をダウンロード」</strong>ボタンをクリックしてください。</li>
-    </ul>
-
-    <h3>③ ユーザー管理</h3>
-    <div style="text-align: center; margin: 20px 0;">
-        <img src="../images/user_list.png" alt="ユーザー管理画面"
-            style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-    </div>
-    <p>上部メニューの「ユーザー管理」から、従業員の追加・削除が行えます。</p>
-    <table>
-        <tr>
-            <th>パスワードの再設定</th>
-            <td>従業員がパスワードを忘れた場合、管理者が「パスワードリセット」ボタンから新しいパスワード（英数6文字以上）を強制的に再設定できます。</td>
-        </tr>
-        <tr>
-            <th>アカウントの削除</th>
-            <td>退職などの理由で不要になったアカウントを削除できます。<br>※削除すると、そのユーザーが過去に入力した日報データもすべて削除されるためご注意ください。</td>
-        </tr>
-    </table>
-
-    <h3>④ データ一括削除（メンテナンス機能）</h3>
-    <div class="warning">
-        <strong>【注意】データは復元できません！</strong><br>
-        この操作は、システムのデータ容量（500MB制限等）を節約するために、過去の古いデータを一掃するためのものです。実行前には必ず「② Excelでの一括出力」を利用してバックアップを保存してください。
-    </div>
-    <div style="text-align: center; margin: 20px 0;">
-        <img src="../images/maintenance.png" alt="データメンテナンス"
-            style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-    </div>
-    <p>上部メニューの「データ管理」から、期間を指定してすべての日報データを完全に削除できます。</p>
+    <section>
+        <h3>④ データ一括削除（メンテナンス機能）</h3>
+        <div class="warning">
+            <strong>【注意】データは復元できません！</strong><br>
+            この操作は、システムのデータ容量（500MB制限等）を節約するために、過去の古いデータを一掃するためのものです。実行前には必ず「② Excelでの一括出力」を利用してバックアップを保存してください。
+        </div>
+        <div style="text-align: center; margin: 20px 0;">
+            <img src="../images/maintenance.png" alt="データメンテナンス"
+                style="max-width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        </div>
+        <p>上部メニューの「データ管理」から、期間を指定してすべての日報データを完全に削除できます。</p>
+    </section>
 
 </body>
 
