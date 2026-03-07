@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
         }
 
         const { error } = await supabase
-            .from("reports")
+            .from("daily_reports")
             .delete()
             .gte("report_date", startDate)
             .lte("report_date", endDate);
