@@ -230,6 +230,32 @@ export async function POST(req: NextRequest) {
     for (let day = 1; day <= lastDay; day++) {
       const rowNum = DATA_START_ROW + day - 1;
       const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const d = new Date(dateStr + "T00:00:00");
+      const isSunday = d.getDay() === 0;
+
+      // 日付と区分（B列、C列）の背景色を動的に設定。日曜は青、それ以外は白（透明）
+      const destRow = dest.getRow(rowNum);
+      const targetCols = ["B", "C"]; // ご要望の青色対象列はB,C列のみ
+
+      for (let c = 1; c <= 13; c++) {
+        const destCell = destRow.getCell(c);
+        // B, C 列は日曜なら青、それ以外は色付けをリセット
+        // 他の列も固定の色がついている可能性があるためリセット
+        if (isSunday && (c === 2 || c === 3)) { // B=2, C=3
+          destCell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF00B0F0" }, // テンプレートで使われていた青色
+          };
+        } else {
+          // 動的に白（あるいは色なし）に戻す
+          destCell.fill = {
+            type: "pattern",
+            pattern: "none",
+          };
+        }
+      }
+
       const report = reportsForUser.get(dateStr);
       if (!report) continue;
 
@@ -254,14 +280,21 @@ export async function POST(req: NextRequest) {
   const rawBuffer = await wb.xlsx.writeBuffer();
   const zip = await JSZip.loadAsync(rawBuffer);
 
-  // NaN 対策のみ実施
+  // NaN 対策および条件付き書式の徹底排除
   for (const zipEntryName of Object.keys(zip.files)) {
     if (!/xl\/worksheets\/sheet\d+\.xml$/.test(zipEntryName)) continue;
     let xml = await zip.files[zipEntryName].async("string");
+
+    // NaN を 0 に置換
     if (xml.includes("<v>NaN</v>")) {
       xml = xml.replace(/<v>NaN<\/v>/g, "<v>0</v>");
-      zip.file(zipEntryName, xml);
     }
+
+    // ひな形に残存している「条件付き書式」の設定タグをすべて削除し、
+    // プログラムで動的に塗った色指定だけが確実に有効になるようにする
+    xml = xml.replace(/<conditionalFormatting[^>]*>[\s\S]*?<\/conditionalFormatting>/gi, "");
+
+    zip.file(zipEntryName, xml);
   }
 
   const buffer = await zip.generateAsync({ type: "arraybuffer" });

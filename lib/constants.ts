@@ -7,8 +7,8 @@ export const STANDARD_MINUTES = Number(process.env.STANDARD_MINUTES ?? 480);
 /** セッション有効期間 (ミリ秒): 最終操作から7日 */
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** 編集可能範囲 (日数): 当日から過去30日 */
-export const EDIT_WINDOW_DAYS = 30;
+/** 編集可能範囲 (日数): 無制限に変更 (以前は30日) */
+// export const EDIT_WINDOW_DAYS = 30;
 
 /** セッション Cookie 名 */
 export const SESSION_COOKIE = "session_token";
