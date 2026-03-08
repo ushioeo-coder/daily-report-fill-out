@@ -230,6 +230,32 @@ export async function POST(req: NextRequest) {
     for (let day = 1; day <= lastDay; day++) {
       const rowNum = DATA_START_ROW + day - 1;
       const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const d = new Date(dateStr + "T00:00:00");
+      const isSunday = d.getDay() === 0;
+
+      // 日付と区分（B列、C列）の背景色を動的に設定。日曜は青、それ以外は白（透明）
+      const destRow = dest.getRow(rowNum);
+      const targetCols = ["B", "C"]; // ご要望の青色対象列はB,C列のみ
+
+      for (let c = 1; c <= 13; c++) {
+        const destCell = destRow.getCell(c);
+        // B, C 列は日曜なら青、それ以外は色付けをリセット
+        // 他の列も固定の色がついている可能性があるためリセット
+        if (isSunday && (c === 2 || c === 3)) { // B=2, C=3
+          destCell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF00B0F0" }, // テンプレートで使われていた青色
+          };
+        } else {
+          // 動的に白（あるいは色なし）に戻す
+          destCell.fill = {
+            type: "pattern",
+            pattern: "none",
+          };
+        }
+      }
+
       const report = reportsForUser.get(dateStr);
       if (!report) continue;
 
