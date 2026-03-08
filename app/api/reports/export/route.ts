@@ -280,14 +280,21 @@ export async function POST(req: NextRequest) {
   const rawBuffer = await wb.xlsx.writeBuffer();
   const zip = await JSZip.loadAsync(rawBuffer);
 
-  // NaN 対策のみ実施
+  // NaN 対策および条件付き書式の徹底排除
   for (const zipEntryName of Object.keys(zip.files)) {
     if (!/xl\/worksheets\/sheet\d+\.xml$/.test(zipEntryName)) continue;
     let xml = await zip.files[zipEntryName].async("string");
+
+    // NaN を 0 に置換
     if (xml.includes("<v>NaN</v>")) {
       xml = xml.replace(/<v>NaN<\/v>/g, "<v>0</v>");
-      zip.file(zipEntryName, xml);
     }
+
+    // ひな形に残存している「条件付き書式」の設定タグをすべて削除し、
+    // プログラムで動的に塗った色指定だけが確実に有効になるようにする
+    xml = xml.replace(/<conditionalFormatting[^>]*>[\s\S]*?<\/conditionalFormatting>/gi, "");
+
+    zip.file(zipEntryName, xml);
   }
 
   const buffer = await zip.generateAsync({ type: "arraybuffer" });
