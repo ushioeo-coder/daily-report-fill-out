@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 import { computeDerivedColumns, RawReport } from "@/lib/calc";
-import { EDIT_WINDOW_DAYS } from "@/lib/constants";
+// import { EDIT_WINDOW_DAYS } from "@/lib/constants";
 
 const DATE_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
 const UUID_RE =
@@ -141,19 +141,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 30日編集制限チェック (admin はスキップ)
-  if (session.role !== "admin") {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - EDIT_WINDOW_DAYS);
-    const cutoffStr = cutoff.toISOString().split("T")[0];
-
-    if (report_date < cutoffStr) {
-      return NextResponse.json(
-        { error: "編集期限を過ぎています。" },
-        { status: 403 }
-      );
-    }
-  }
+  // 30日編集制限チェック (admin はスキップ) は無制限化のため撤廃しました
+  // if (session.role !== "admin") { ... }
 
   // 6つの時間フィールドのバリデーション (各 0〜1439 の整数 or null)
   for (const field of TIME_FIELDS) {
