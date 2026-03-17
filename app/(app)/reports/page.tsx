@@ -6,6 +6,7 @@ import { minutesToHHMM, hhmmToMinutes } from "@/lib/time";
 type Report = {
   id?: string;
   report_date: string;
+  attendance_type: string | null;
   start_time: number | null;
   site_arrival_time: number | null;
   work_start_time: number | null;
@@ -16,6 +17,7 @@ type Report = {
   site_work_minutes?: number | null;
   travel_office_minutes?: number | null;
   overtime_minutes?: number | null;
+  deep_night_minutes?: number | null;
 };
 
 /** 時間フィールド定義 (表示順) */
@@ -68,6 +70,7 @@ function formatMinutes(min: number | null | undefined): string {
 }
 
 const EMPTY_REPORT: Omit<Report, "report_date"> = {
+  attendance_type: null,
   start_time: null,
   site_arrival_time: null,
   work_start_time: null,
@@ -160,6 +163,7 @@ export default function ReportsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           report_date: date,
+          attendance_type: report.attendance_type ?? null,
           start_time: report.start_time,
           site_arrival_time: report.site_arrival_time,
           work_start_time: report.work_start_time,
@@ -224,6 +228,7 @@ export default function ReportsPage() {
             <tr className="border-b bg-gray-50 text-left text-gray-600">
               <th className="px-2 py-2 whitespace-nowrap">日</th>
               <th className="px-2 py-2 whitespace-nowrap">曜</th>
+              <th className="px-2 py-2 whitespace-nowrap">出勤区分</th>
               {TIME_COLUMNS.map((col) => (
                 <th key={col.key} className="px-1 py-2 whitespace-nowrap">
                   {col.label}
@@ -260,6 +265,21 @@ export default function ReportsPage() {
                       }`}
                   >
                     {weekday}
+                  </td>
+                  <td className="px-1 py-1">
+                    <select
+                      value={report?.attendance_type ?? ""}
+                      onChange={(e) =>
+                        updateLocal(date, "attendance_type", e.target.value || null)
+                      }
+                      disabled={future}
+                      className="w-[5.5rem] rounded border px-1 py-1 text-xs text-gray-900 disabled:bg-gray-100"
+                    >
+                      <option value="">—</option>
+                      {["出勤", "欠勤", "休日", "有給", "振休", "休日出勤"].map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
                   </td>
                   {TIME_COLUMNS.map((col) => {
                     const timeValue = report?.[col.key] != null ? minutesToHHMM(report[col.key] as number) : "";
@@ -349,6 +369,24 @@ export default function ReportsPage() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* 出勤区分 月集計 */}
+      <div className="mt-4 rounded-lg border bg-white p-4 shadow-sm">
+        <h3 className="mb-2 text-sm font-bold text-gray-700">出勤区分 月集計</h3>
+        <div className="flex flex-wrap gap-4 text-xs text-gray-700">
+          {["出勤", "欠勤", "休日", "有給", "振休", "休日出勤"].map((type) => {
+            const count = Array.from(reports.values()).filter(
+              (r) => r.attendance_type === type
+            ).length;
+            return (
+              <div key={type} className="flex items-center gap-1">
+                <span className="font-medium text-gray-600">{type}:</span>
+                <span className="font-bold">{count}日</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
