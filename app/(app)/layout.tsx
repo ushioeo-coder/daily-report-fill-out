@@ -42,6 +42,12 @@ export default async function AppLayout({
                   Excel出力
                 </Link>
                 <Link
+                  href="/admin/paid-leave"
+                  className="text-blue-600 hover:underline"
+                >
+                  有給管理
+                </Link>
+                <Link
                   href="/admin/users"
                   className="text-blue-600 hover:underline"
                 >
