@@ -273,10 +273,10 @@ export async function POST(req: NextRequest) {
         cell.value = val / 1440;
       }
 
-      // 深夜勤務時間（K列）
+      // 深夜勤務時間（N列 — 新規列）
       const derived = computeDerivedColumns(report);
       if (derived.deep_night_minutes != null && derived.deep_night_minutes > 0) {
-        const deepCell = dest.getCell(`K${rowNum}`);
+        const deepCell = dest.getCell(`N${rowNum}`);
         deepCell.value = derived.deep_night_minutes / 1440;
         deepCell.numFmt = "[h]:mm";
       }
