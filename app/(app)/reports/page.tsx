@@ -18,6 +18,7 @@ type Report = {
   travel_office_minutes?: number | null;
   overtime_minutes?: number | null;
   deep_night_minutes?: number | null;
+  holiday_work_minutes?: number | null;  // 休日出勤時の総労働時間
 };
 
 /** 時間フィールド定義 (表示順) */
@@ -234,10 +235,11 @@ export default function ReportsPage() {
                   {col.label}
                 </th>
               ))}
-              <th className="px-2 py-2 whitespace-nowrap">移動・会社作業</th>
+              <th className="px-2 py-2 whitespace-nowrap">現場外</th>
               <th className="px-2 py-2 whitespace-nowrap">現場作業</th>
               <th className="px-2 py-2 whitespace-nowrap">残業</th>
               <th className="px-2 py-2 whitespace-nowrap">深夜勤務</th>
+              <th className="px-2 py-2 whitespace-nowrap">休日出勤</th>
               <th className="px-2 py-2">備考</th>
               <th className="sticky right-0 bg-gray-50 px-2 py-2"></th>
             </tr>
@@ -288,6 +290,16 @@ export default function ReportsPage() {
                     return (
                       <td key={col.key} className="px-1 py-1">
                         <div className="relative flex items-center">
+                          {/* 時計アイコン（左側に固定配置） */}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="absolute left-1.5 h-3 w-3 text-gray-400 pointer-events-none"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
                           <input
                             type="text"
                             inputMode="numeric"
@@ -317,7 +329,7 @@ export default function ReportsPage() {
                               });
                             }}
                             disabled={future}
-                            className="w-[5rem] rounded border px-2 py-1 text-xs text-gray-900 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 transition-colors hover:border-blue-400"
+                            className="w-[5.5rem] rounded border pl-5 pr-1 py-1 text-xs text-gray-900 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 transition-colors hover:border-blue-400"
                           />
                           {displayValue && !future && (
                             <button
@@ -345,6 +357,9 @@ export default function ReportsPage() {
                   </td>
                   <td className="px-2 py-1 whitespace-nowrap text-gray-700">
                     {formatMinutes(report?.deep_night_minutes)}
+                  </td>
+                  <td className="px-2 py-1 whitespace-nowrap text-gray-700">
+                    {formatMinutes(report?.holiday_work_minutes)}
                   </td>
                   <td className="px-2 py-1">
                     <input

@@ -273,12 +273,22 @@ export async function POST(req: NextRequest) {
         cell.value = val / 1440;
       }
 
-      // 深夜勤務時間（N列 — 新規列）
+      // 計算列（深夜勤務・休日出勤）を算出
       const derived = computeDerivedColumns(report);
+
+      // 深夜勤務時間（N列 — 既存列）
       if (derived.deep_night_minutes != null && derived.deep_night_minutes > 0) {
         const deepCell = dest.getCell(`N${rowNum}`);
         deepCell.value = derived.deep_night_minutes / 1440;
         deepCell.numFmt = "[h]:mm";
+      }
+
+      // 休日出勤時間（O列 — 新規列）
+      // attendance_type が「休日出勤」の場合のみ総労働時間を記入
+      if (derived.holiday_work_minutes != null && derived.holiday_work_minutes > 0) {
+        const holidayCell = dest.getCell(`O${rowNum}`);
+        holidayCell.value = derived.holiday_work_minutes / 1440;
+        holidayCell.numFmt = "[h]:mm";
       }
     }
     userCount++;
