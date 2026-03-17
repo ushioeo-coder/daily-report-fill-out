@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 import { computeDerivedColumns, RawReport } from "@/lib/calc";
-// import { EDIT_WINDOW_DAYS } from "@/lib/constants";
+import { MAX_TIME_MINUTES, ATTENDANCE_TYPES } from "@/lib/constants";
 
 const DATE_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
 const UUID_RE =
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("daily_reports")
-    .select("id, user_id, report_date, start_time, site_arrival_time, work_start_time, work_end_time, return_time, end_time, note, created_at, updated_at")
+    .select("id, user_id, report_date, attendance_type, start_time, site_arrival_time, work_start_time, work_end_time, return_time, end_time, note, created_at, updated_at")
     .gte("report_date", from)
     .lte("report_date", to)
     .order("report_date", { ascending: true });
@@ -111,11 +111,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { report_date, note } = body;
+  const { report_date, note, attendance_type } = body;
 
   if (!DATE_RE.test(report_date)) {
     return NextResponse.json(
       { error: "report_date は YYYY-MM-DD 形式で指定してください。" },
+      { status: 400 }
+    );
+  }
+
+  // 出勤区分バリデーション（null許容、指定時は6種類のみ）
+  if (attendance_type != null && !(ATTENDANCE_TYPES as readonly string[]).includes(attendance_type)) {
+    return NextResponse.json(
+      { error: "attendance_type の値が不正です。" },
       { status: 400 }
     );
   }
@@ -147,9 +155,9 @@ export async function POST(req: NextRequest) {
   // 6つの時間フィールドのバリデーション (各 0〜1439 の整数 or null)
   for (const field of TIME_FIELDS) {
     const val = body[field];
-    if (val != null && (typeof val !== "number" || !Number.isInteger(val) || val < 0 || val > 1439)) {
+    if (val != null && (typeof val !== "number" || !Number.isInteger(val) || val < 0 || val > MAX_TIME_MINUTES)) {
       return NextResponse.json(
-        { error: `${field} は 0〜1439 の整数で指定してください。` },
+        { error: `${field} は 0〜${MAX_TIME_MINUTES} の整数で指定してください。` },
         { status: 400 }
       );
     }
@@ -169,6 +177,7 @@ export async function POST(req: NextRequest) {
       {
         user_id: targetUserId,
         report_date,
+        attendance_type: attendance_type ?? null,
         start_time: body.start_time ?? null,
         site_arrival_time: body.site_arrival_time ?? null,
         work_start_time: body.work_start_time ?? null,
