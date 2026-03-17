@@ -12,3 +12,19 @@ export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** セッション Cookie 名 */
 export const SESSION_COOKIE = "session_token";
+
+/** 出勤区分の選択肢 */
+export const ATTENDANCE_TYPES = [
+  '出勤', '欠勤', '休日', '有給', '振休', '休日出勤',
+] as const;
+
+export type AttendanceType = typeof ATTENDANCE_TYPES[number];
+
+/** 深夜時間帯の開始（分）: 22:00 = 1320 */
+export const DEEP_NIGHT_START_MIN = 22 * 60;
+
+/** 深夜時間帯の終了（分）: 翌5:00 = 29:00 = 1740 */
+export const DEEP_NIGHT_END_MIN = (24 + 5) * 60;
+
+/** 時刻フィールドの最大値（分）: 47:59 = 2879。夜勤対応。 */
+export const MAX_TIME_MINUTES = 2879;

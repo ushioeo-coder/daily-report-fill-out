@@ -1,5 +1,5 @@
 import "server-only";
-import { BREAK_MINUTES, STANDARD_MINUTES } from "@/lib/constants";
+import { BREAK_MINUTES, STANDARD_MINUTES, DEEP_NIGHT_START_MIN, DEEP_NIGHT_END_MIN } from "@/lib/constants";
 
 export type RawReport = {
   start_time: number | null;
@@ -14,20 +14,40 @@ export type DerivedColumns = {
   site_work_minutes: number | null;
   travel_office_minutes: number | null;
   overtime_minutes: number | null;
+  deep_night_minutes: number | null;
 };
 
 /**
- * 現場作業時間・移動会社作業時間・残業時間を算出する。
+ * 深夜勤務時間を計算する。
+ * 深夜時間帯: 22:00(1320分) ～ 翌5:00(1740分)
+ * 作業開始～作業終了の区間と深夜時間帯の重複分を返す。
+ *
+ * 前提:
+ *  - workStart / workEnd は「当日0:00からの分」で表現される
+ *  - 夜勤時刻は 24h 超の分値（例: 26:00 = 1560分）で渡される
+ *  - workEnd は最大 2879（47:59）まで許容
+ *  - 深夜帯の判定は 1320〜1740 の1区間のみ（翌日22時以降への跨ぎは想定外）
+ */
+function calcDeepNightMinutes(workStart: number, workEnd: number): number {
+  const overlapStart = Math.max(workStart, DEEP_NIGHT_START_MIN);
+  const overlapEnd = Math.min(workEnd, DEEP_NIGHT_END_MIN);
+  return overlapEnd > overlapStart ? overlapEnd - overlapStart : 0;
+}
+
+/**
+ * 現場作業時間・移動会社作業時間・残業時間・深夜勤務時間を算出する。
  *
  * - 現場作業時間 = 作業開始→作業終了 - 休憩(2:00)
  * - 移動・会社作業時間 = (出社→現場到着) + (現場作業終了→退勤)
  * - 残業時間 = 移動・会社作業時間 + 現場作業時間 - 所定(8:00)
+ * - 深夜勤務時間 = 作業時間と22:00～翌5:00の重複分
  */
 export function computeDerivedColumns(report: RawReport): DerivedColumns {
   const result: DerivedColumns = {
     site_work_minutes: null,
     travel_office_minutes: null,
     overtime_minutes: null,
+    deep_night_minutes: null,
   };
 
   // 現場作業時間 = 作業開始→作業終了 - 休憩(2:00)
@@ -56,6 +76,14 @@ export function computeDerivedColumns(report: RawReport): DerivedColumns {
   if (result.travel_office_minutes != null && result.site_work_minutes != null) {
     const total = result.travel_office_minutes + result.site_work_minutes;
     result.overtime_minutes = Math.max(total - STANDARD_MINUTES, 0);
+  }
+
+  // 深夜勤務時間（22:00〜翌5:00）
+  if (report.work_start_time != null && report.work_end_time != null) {
+    result.deep_night_minutes = calcDeepNightMinutes(
+      report.work_start_time,
+      report.work_end_time
+    );
   }
 
   return result;

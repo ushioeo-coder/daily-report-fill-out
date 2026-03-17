@@ -6,6 +6,7 @@ import { minutesToHHMM, hhmmToMinutes } from "@/lib/time";
 type Report = {
   id?: string;
   report_date: string;
+  attendance_type: string | null;
   start_time: number | null;
   site_arrival_time: number | null;
   work_start_time: number | null;
@@ -16,6 +17,7 @@ type Report = {
   site_work_minutes?: number | null;
   travel_office_minutes?: number | null;
   overtime_minutes?: number | null;
+  deep_night_minutes?: number | null;
 };
 
 /** 時間フィールド定義 (表示順) */
@@ -68,6 +70,7 @@ function formatMinutes(min: number | null | undefined): string {
 }
 
 const EMPTY_REPORT: Omit<Report, "report_date"> = {
+  attendance_type: null,
   start_time: null,
   site_arrival_time: null,
   work_start_time: null,
@@ -85,11 +88,11 @@ export default function ReportsPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"info" | "error">("info");
-  const [isMobile, setIsMobile] = useState(false);
+  const [rawInputs, setRawInputs] = useState<Map<string, string>>(new Map());
 
-  useEffect(() => {
-    setIsMobile(/Mobi|Android/i.test(navigator.userAgent));
-  }, []);
+  function getRawKey(date: string, field: string) {
+    return `${date}__${field}`;
+  }
 
   const days = getDaysInMonth(year, month);
   const from = days[0];
@@ -160,6 +163,7 @@ export default function ReportsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           report_date: date,
+          attendance_type: report.attendance_type ?? null,
           start_time: report.start_time,
           site_arrival_time: report.site_arrival_time,
           work_start_time: report.work_start_time,
@@ -224,6 +228,7 @@ export default function ReportsPage() {
             <tr className="border-b bg-gray-50 text-left text-gray-600">
               <th className="px-2 py-2 whitespace-nowrap">日</th>
               <th className="px-2 py-2 whitespace-nowrap">曜</th>
+              <th className="px-2 py-2 whitespace-nowrap">出勤区分</th>
               {TIME_COLUMNS.map((col) => (
                 <th key={col.key} className="px-1 py-2 whitespace-nowrap">
                   {col.label}
@@ -232,6 +237,7 @@ export default function ReportsPage() {
               <th className="px-2 py-2 whitespace-nowrap">移動・会社作業</th>
               <th className="px-2 py-2 whitespace-nowrap">現場作業</th>
               <th className="px-2 py-2 whitespace-nowrap">残業</th>
+              <th className="px-2 py-2 whitespace-nowrap">深夜勤務</th>
               <th className="px-2 py-2">備考</th>
               <th className="sticky right-0 bg-gray-50 px-2 py-2"></th>
             </tr>
@@ -261,49 +267,65 @@ export default function ReportsPage() {
                   >
                     {weekday}
                   </td>
+                  <td className="px-1 py-1">
+                    <select
+                      value={report?.attendance_type ?? ""}
+                      onChange={(e) =>
+                        updateLocal(date, "attendance_type", e.target.value || null)
+                      }
+                      disabled={future}
+                      className="w-[5.5rem] rounded border px-1 py-1 text-xs text-gray-900 disabled:bg-gray-100"
+                    >
+                      <option value="">—</option>
+                      {["出勤", "欠勤", "休日", "有給", "振休", "休日出勤"].map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </td>
                   {TIME_COLUMNS.map((col) => {
-                    const timeValue = report?.[col.key] != null ? minutesToHHMM(report[col.key] as number) : "";
+                    const rawValue = rawInputs.get(getRawKey(date, col.key));
+                    const displayValue = rawValue !== undefined ? rawValue : (report?.[col.key] != null ? minutesToHHMM(report[col.key] as number) : "");
                     return (
                       <td key={col.key} className="px-1 py-1">
-                        <div className="group relative flex items-center">
+                        <div className="relative flex items-center">
                           <input
-                            type="time"
-                            step="300"
-                            value={timeValue}
-                            onChange={(e) => updateLocal(date, col.key, hhmmToMinutes(e.target.value))}
-                            onClick={(e) => {
-                              // スマホのみ枠内クリックでピッカーを強制起動（PCはキーボード入力を優先）
-                              if (isMobile) {
-                                try { (e.target as any).showPicker(); } catch (err) { }
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="HH:MM"
+                            value={displayValue}
+                            onChange={(e) => {
+                              setRawInputs((prev) => {
+                                const next = new Map(prev);
+                                next.set(getRawKey(date, col.key), e.target.value);
+                                return next;
+                              });
+                            }}
+                            onBlur={(e) => {
+                              const raw = e.target.value.trim();
+                              if (raw === "") {
+                                updateLocal(date, col.key, null);
+                              } else {
+                                const minutes = hhmmToMinutes(raw);
+                                if (minutes !== null) {
+                                  updateLocal(date, col.key, minutes);
+                                }
                               }
+                              setRawInputs((prev) => {
+                                const next = new Map(prev);
+                                next.delete(getRawKey(date, col.key));
+                                return next;
+                              });
                             }}
                             disabled={future}
-                            className="w-[7.5rem] rounded border px-2 py-1 text-xs text-gray-900 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 pr-12 transition-colors hover:border-blue-400"
+                            className="w-[5rem] rounded border px-2 py-1 text-xs text-gray-900 focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 transition-colors hover:border-blue-400"
                           />
-                          {/* PC利用者向けの大きな時計アイコンボタン */}
-                          {!isMobile && !future && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                const input = e.currentTarget.previousSibling as HTMLInputElement;
-                                try { (input as any).showPicker(); } catch (err) { }
-                              }}
-                              className="absolute right-8 p-1 text-gray-400 hover:text-blue-500 hidden group-hover:block"
-                              title="時計から選択"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                            </button>
-                          )}
-                          {timeValue && !future && (
+                          {displayValue && !future && (
                             <button
                               onClick={() => updateLocal(date, col.key, null)}
-                              className={`absolute right-2 text-gray-400 hover:text-red-500 ${isMobile ? "p-2" : "p-1 hidden group-hover:block"
-                                }`}
+                              className="absolute right-1 p-1 text-gray-400 hover:text-red-500"
                               title="時間をクリア"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className={isMobile ? "h-5 w-5" : "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                               </svg>
                             </button>
@@ -320,6 +342,9 @@ export default function ReportsPage() {
                   </td>
                   <td className="px-2 py-1 whitespace-nowrap text-gray-700">
                     {formatMinutes(report?.overtime_minutes)}
+                  </td>
+                  <td className="px-2 py-1 whitespace-nowrap text-gray-700">
+                    {formatMinutes(report?.deep_night_minutes)}
                   </td>
                   <td className="px-2 py-1">
                     <input
@@ -349,6 +374,24 @@ export default function ReportsPage() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* 出勤区分 月集計 */}
+      <div className="mt-4 rounded-lg border bg-white p-4 shadow-sm">
+        <h3 className="mb-2 text-sm font-bold text-gray-700">出勤区分 月集計</h3>
+        <div className="flex flex-wrap gap-4 text-xs text-gray-700">
+          {["出勤", "欠勤", "休日", "有給", "振休", "休日出勤"].map((type) => {
+            const count = Array.from(reports.values()).filter(
+              (r) => r.attendance_type === type
+            ).length;
+            return (
+              <div key={type} className="flex items-center gap-1">
+                <span className="font-medium text-gray-600">{type}:</span>
+                <span className="font-bold">{count}日</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
