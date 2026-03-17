@@ -4,6 +4,7 @@ import JSZip from "jszip";
 import path from "path";
 import { getSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
+import { computeDerivedColumns } from "@/lib/calc";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
   // 万一 in() がエラーになる場合は、Supabaseクライアントから取得。
   const { data: reports, error: reportsError } = await supabase
     .from("daily_reports")
-    .select("user_id, report_date, start_time, site_arrival_time, work_start_time, work_end_time, return_time, end_time, note")
+    .select("user_id, report_date, attendance_type, start_time, site_arrival_time, work_start_time, work_end_time, return_time, end_time, note")
     .gte("report_date", from)
     .lte("report_date", to)
     .order("report_date", { ascending: true });
@@ -259,11 +260,25 @@ export async function POST(req: NextRequest) {
       const report = reportsForUser.get(dateStr);
       if (!report) continue;
 
+      // 出勤区分（D列）
+      if (report.attendance_type) {
+        const attendanceCell = dest.getCell(`D${rowNum}`);
+        attendanceCell.value = report.attendance_type;
+      }
+
       for (const [col, field] of COL_MAP) {
         const val = report[field];
         if (val == null || typeof val !== "number") continue;
         const cell = dest.getCell(`${col}${rowNum}`);
         cell.value = val / 1440;
+      }
+
+      // 深夜勤務時間（K列）
+      const derived = computeDerivedColumns(report);
+      if (derived.deep_night_minutes != null && derived.deep_night_minutes > 0) {
+        const deepCell = dest.getCell(`K${rowNum}`);
+        deepCell.value = derived.deep_night_minutes / 1440;
+        deepCell.numFmt = "[h]:mm";
       }
     }
     userCount++;
