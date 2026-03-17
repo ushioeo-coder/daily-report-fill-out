@@ -290,13 +290,19 @@ export default function ReportsPage() {
                     return (
                       <td key={col.key} className="px-1 py-1">
                         <div className="relative flex items-center">
-                          {/* 時計アイコン（左側に固定配置） */}
+                          {/* 時計アイコン（左側に固定配置・クリックで入力欄にフォーカス） */}
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            className="absolute left-1.5 h-3 w-3 text-gray-400 pointer-events-none"
+                            className="absolute left-1.5 h-3 w-3 text-gray-400 cursor-pointer hover:text-blue-500 transition-colors"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
+                            onClick={(e) => {
+                              const input = (e.currentTarget.parentElement as HTMLElement)
+                                ?.querySelector<HTMLInputElement>("input");
+                              input?.focus();
+                              input?.select();
+                            }}
                           >
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>

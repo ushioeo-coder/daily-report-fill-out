@@ -90,14 +90,18 @@ export function computeDerivedColumns(report: RawReport): DerivedColumns {
     );
   }
 
-  // 休日出勤時間 = 出勤区分が「休日出勤」のときの総労働時間
-  // （現場作業時間 + 移動・会社作業時間のいずれか、またはその合計）
+  // 休日出勤の場合: 全労働時間を「休日出勤」列に一本化し、
+  // 現場作業・現場外・残業の個別表示はリセット（重複集計防止）
   if (report.attendance_type === "休日出勤") {
     const site = result.site_work_minutes ?? 0;
     const travel = result.travel_office_minutes ?? 0;
     if (result.site_work_minutes != null || result.travel_office_minutes != null) {
       result.holiday_work_minutes = site + travel;
     }
+    // 個別列はリセット（休日出勤列にすべて集約するため）
+    result.site_work_minutes = null;
+    result.travel_office_minutes = null;
+    result.overtime_minutes = null;
   }
 
   return result;
