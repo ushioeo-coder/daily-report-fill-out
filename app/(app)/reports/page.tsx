@@ -86,13 +86,33 @@ export default function ReportsPage() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [reports, setReports] = useState<Map<string, Report>>(new Map());
-  const [saving, setSaving] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"info" | "error">("info");
   const [rawInputs, setRawInputs] = useState<Map<string, string>>(new Map());
+  // 変更済みの日付を追跡（未保存マーカー表示 & 一括保存対象の特定）
+  const [dirtyDates, setDirtyDates] = useState<Set<string>>(new Set());
+  // 時刻ダイヤル（ピッカー）の状態。null=非表示、オブジェクト=表示中
+  const [picker, setPicker] = useState<{
+    date: string;
+    field: keyof Report;
+    h: number;  // 時（0〜47）
+    m: number;  // 分（0〜59）
+  } | null>(null);
 
   function getRawKey(date: string, field: string) {
     return `${date}__${field}`;
+  }
+
+  /** 時刻ダイヤルを開く。currentMinutes が null のときは 0:00 から開始 */
+  function openPicker(date: string, field: keyof Report, currentMinutes: number | null) {
+    const total = currentMinutes ?? 0;
+    setPicker({
+      date,
+      field,
+      h: Math.floor(total / 60),
+      m: total % 60,
+    });
   }
 
   const days = getDaysInMonth(year, month);
@@ -142,54 +162,85 @@ export default function ReportsPage() {
       next.set(date, { ...existing, [field]: value });
       return next;
     });
+    // 変更済み日付として記録
+    setDirtyDates((prev) => new Set(prev).add(date));
   }
 
-  async function saveRow(date: string) {
-    // 未来日チェック
-    if (isFutureDate(date)) {
-      setMessage("未来の日付には入力できません。");
-      setMessageType("error");
+  /**
+   * 指定日の送信ペイロードを作成する。
+   * rawInputs（未コミットの入力中テキスト）があればそちらを優先する。
+   */
+  function buildRowPayload(date: string) {
+    const report = reports.get(date) ?? { report_date: date, ...EMPTY_REPORT };
+    const timeFields: Record<string, number | null> = {};
+    for (const col of TIME_COLUMNS) {
+      const raw = rawInputs.get(getRawKey(date, col.key));
+      if (raw !== undefined) {
+        const trimmed = raw.trim();
+        timeFields[col.key] = trimmed === "" ? null : (hhmmToMinutes(trimmed) ?? (report[col.key] as number | null));
+      } else {
+        timeFields[col.key] = report[col.key] as number | null;
+      }
+    }
+    return {
+      report_date: date,
+      attendance_type: report.attendance_type ?? null,
+      ...timeFields,
+      note: report.note || null,
+    };
+  }
+
+  /** 変更済みの全行を一括保存する */
+  async function saveAll() {
+    // rawInputs が残っている日付も保存対象に含める
+    const rawInputDates = new Set<string>();
+    for (const key of rawInputs.keys()) {
+      rawInputDates.add(key.split("__")[0]);
+    }
+    const datesToSave = [...new Set([...dirtyDates, ...rawInputDates])].filter(
+      (d) => !isFutureDate(d)
+    );
+
+    if (datesToSave.length === 0) {
+      setMessage("変更はありません。");
+      setMessageType("info");
       return;
     }
 
-    const report = reports.get(date);
-    if (!report) return;
-
-    setSaving(date);
+    setSaving(true);
     setMessage("");
 
     try {
-      const res = await fetch("/api/reports", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          report_date: date,
-          attendance_type: report.attendance_type ?? null,
-          start_time: report.start_time,
-          site_arrival_time: report.site_arrival_time,
-          work_start_time: report.work_start_time,
-          work_end_time: report.work_end_time,
-          return_time: report.return_time,
-          end_time: report.end_time,
-          note: report.note || null,
-        }),
-      });
+      // 全対象日を並列保存
+      const results = await Promise.all(
+        datesToSave.map((date) =>
+          fetch("/api/reports", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(buildRowPayload(date)),
+          })
+        )
+      );
 
-      if (!res.ok) {
-        const data = await res.json();
-        setMessage(data.error ?? "保存に失敗しました。");
+      const failed = results.filter((r) => !r.ok);
+      if (failed.length > 0) {
+        const data = await failed[0].json();
+        setMessage(data.error ?? "一部の保存に失敗しました。");
         setMessageType("error");
         return;
       }
 
+      // 保存成功 → サーバーデータを再取得して計算列を更新
       await fetchReports();
-      setMessage(`${date} を保存しました。`);
+      setDirtyDates(new Set());
+      setRawInputs(new Map());
+      setMessage(`${datesToSave.length}件 を保存しました。`);
       setMessageType("info");
     } catch {
       setMessage("通信エラーが発生しました。");
       setMessageType("error");
     } finally {
-      setSaving(null);
+      setSaving(false);
     }
   }
 
@@ -212,6 +263,20 @@ export default function ReportsPage() {
         >
           翌月
         </button>
+        <div className="ml-auto flex items-center gap-2">
+          {dirtyDates.size > 0 && (
+            <span className="text-xs text-amber-600 font-medium">
+              {dirtyDates.size}件 未保存
+            </span>
+          )}
+          <button
+            onClick={saveAll}
+            disabled={saving}
+            className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {saving ? "保存中..." : "一括保存"}
+          </button>
+        </div>
       </div>
 
       {message && (
@@ -241,7 +306,6 @@ export default function ReportsPage() {
               <th className="px-2 py-2 whitespace-nowrap">深夜勤務</th>
               <th className="px-2 py-2 whitespace-nowrap">休日出勤</th>
               <th className="px-2 py-2">備考</th>
-              <th className="sticky right-0 bg-gray-50 px-2 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -253,10 +317,11 @@ export default function ReportsPage() {
               const dayNum = date.split("-")[2];
               const rowBg = weekend ? "bg-gray-50" : "bg-white";
 
+              const dirty = dirtyDates.has(date);
               return (
                 <tr
                   key={date}
-                  className={`border-b ${weekend ? "bg-gray-50 text-gray-400" : ""} ${future ? "opacity-50" : ""}`}
+                  className={`border-b ${dirty ? "bg-amber-50" : weekend ? "bg-gray-50 text-gray-400" : ""} ${future ? "opacity-50" : ""}`}
                 >
                   <td className="px-2 py-1 whitespace-nowrap">{dayNum}</td>
                   <td
@@ -290,18 +355,15 @@ export default function ReportsPage() {
                     return (
                       <td key={col.key} className="px-1 py-1">
                         <div className="relative flex items-center">
-                          {/* 時計アイコン（左側に固定配置・クリックで入力欄にフォーカス） */}
+                          {/* 時計アイコン（左側に固定配置・クリックでダイヤルを表示） */}
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            className="absolute left-1.5 h-3 w-3 text-gray-400 cursor-pointer hover:text-blue-500 transition-colors"
+                            className={`absolute left-1.5 z-10 h-3 w-3 transition-colors ${future ? "text-gray-300 cursor-default" : "text-gray-400 cursor-pointer hover:text-blue-500"}`}
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
-                            onClick={(e) => {
-                              const input = (e.currentTarget.parentElement as HTMLElement)
-                                ?.querySelector<HTMLInputElement>("input");
-                              input?.focus();
-                              input?.select();
+                            onClick={() => {
+                              if (!future) openPicker(date, col.key, report?.[col.key] as number | null);
                             }}
                           >
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -379,21 +441,33 @@ export default function ReportsPage() {
                       className="w-full min-w-[5rem] rounded border px-1.5 py-0.5 text-xs text-gray-900 placeholder-gray-300 disabled:bg-gray-100"
                     />
                   </td>
-                  <td
-                    className={`sticky right-0 ${rowBg} px-2 py-1`}
-                  >
-                    <button
-                      onClick={() => saveRow(date)}
-                      disabled={saving === date || future}
-                      className="rounded bg-blue-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {saving === date ? "..." : "保存"}
-                    </button>
-                  </td>
                 </tr>
               );
             })}
           </tbody>
+          <tfoot>
+            {(() => {
+              // 各列の月合計を計算
+              const allReports = Array.from(reports.values());
+              const sumTravel = allReports.reduce((acc, r) => acc + (r.travel_office_minutes ?? 0), 0);
+              const sumSite = allReports.reduce((acc, r) => acc + (r.site_work_minutes ?? 0), 0);
+              const sumOvertime = allReports.reduce((acc, r) => acc + (r.overtime_minutes ?? 0), 0);
+              const sumDeepNight = allReports.reduce((acc, r) => acc + (r.deep_night_minutes ?? 0), 0);
+              const sumHoliday = allReports.reduce((acc, r) => acc + (r.holiday_work_minutes ?? 0), 0);
+              return (
+                <tr className="border-t-2 border-gray-300 bg-gray-100 font-bold text-xs text-gray-700">
+                  {/* 日・曜・出勤区分・時刻6列 の空白 */}
+                  <td className="px-2 py-1 text-right text-gray-500" colSpan={9}>合計</td>
+                  <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumTravel)}</td>
+                  <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumSite)}</td>
+                  <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumOvertime)}</td>
+                  <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumDeepNight)}</td>
+                  <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumHoliday)}</td>
+                  <td className="px-2 py-1"></td>
+                </tr>
+              );
+            })()}
+          </tfoot>
         </table>
       </div>
 
@@ -414,6 +488,72 @@ export default function ReportsPage() {
           })}
         </div>
       </div>
+
+      {/* 時刻ダイヤル モーダル */}
+      {picker && (
+        // 背景オーバーレイ。クリックで閉じる
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          onClick={() => setPicker(null)}
+        >
+          {/* モーダル本体。クリックが背景に伝播しないよう stopPropagation */}
+          <div
+            className="rounded-xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-4 text-sm font-bold text-gray-700">時刻を選択</h3>
+            <div className="flex items-center gap-3">
+              {/* 時セレクター（0〜47: 夜勤対応） */}
+              <div className="flex flex-col items-center">
+                <label className="mb-1 text-xs text-gray-500">時</label>
+                <select
+                  value={picker.h}
+                  onChange={(e) => setPicker({ ...picker, h: Number(e.target.value) })}
+                  className="h-32 w-16 rounded border px-1 text-center text-sm text-gray-900"
+                  size={5}
+                >
+                  {Array.from({ length: 48 }, (_, i) => (
+                    <option key={i} value={i}>{String(i).padStart(2, "0")}</option>
+                  ))}
+                </select>
+              </div>
+              <span className="text-xl font-bold text-gray-600 pb-1">:</span>
+              {/* 分セレクター（5分刻み） */}
+              <div className="flex flex-col items-center">
+                <label className="mb-1 text-xs text-gray-500">分</label>
+                <select
+                  value={picker.m}
+                  onChange={(e) => setPicker({ ...picker, m: Number(e.target.value) })}
+                  className="h-32 w-16 rounded border px-1 text-center text-sm text-gray-900"
+                  size={5}
+                >
+                  {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
+                    <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setPicker(null)}
+                className="rounded border px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={() => {
+                  // 選択した時・分を分単位に変換して保存
+                  updateLocal(picker.date, picker.field, picker.h * 60 + picker.m);
+                  setPicker(null);
+                }}
+                className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

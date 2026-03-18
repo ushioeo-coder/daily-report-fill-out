@@ -39,11 +39,11 @@ function calcDeepNightMinutes(workStart: number, workEnd: number): number {
 /**
  * 現場作業時間・移動会社作業時間・残業時間・深夜勤務時間・休日出勤時間を算出する。
  *
- * - 現場作業時間 = 作業開始→作業終了 - 休憩(2:00)
+ * - 現場作業時間 = (作業時間 − 深夜時間帯の重複分) − 休憩(2:00)  ※深夜と重複しない
  * - 移動・会社作業時間 = (出社→現場到着) + (現場作業終了→退勤)
  * - 残業時間 = 移動・会社作業時間 + 現場作業時間 - 所定(8:00)
- * - 深夜勤務時間 = 作業時間と22:00～翌5:00の重複分
- * - 休日出勤時間 = 出勤区分が「休日出勤」の場合の総労働時間（現場+移動・会社作業）
+ * - 深夜勤務時間 = 作業時間と22:00〜翌5:00の重複分 − 休憩(2:00)
+ * - 休日出勤時間 = 出勤区分が「休日出勤」の場合の総労働時間 − 休憩(2:00)
  */
 export function computeDerivedColumns(report: RawReport): DerivedColumns {
   const result: DerivedColumns = {
@@ -54,9 +54,19 @@ export function computeDerivedColumns(report: RawReport): DerivedColumns {
     holiday_work_minutes: null,
   };
 
-  // 現場作業時間 = 作業開始→作業終了 - 休憩(2:00)
+  // 深夜時間帯の生の重複分（休憩控除前）
+  let deepNightRaw = 0;
   if (report.work_start_time != null && report.work_end_time != null) {
-    const siteWork = report.work_end_time - report.work_start_time - BREAK_MINUTES;
+    deepNightRaw = calcDeepNightMinutes(report.work_start_time, report.work_end_time);
+    // 深夜勤務時間 = 深夜重複分 − 休憩(2:00)
+    result.deep_night_minutes = Math.max(deepNightRaw - BREAK_MINUTES, 0);
+  }
+
+  // 現場作業時間 = (作業開始→作業終了 − 深夜重複分) − 休憩(2:00)
+  // 深夜時間帯と重複しない昼間作業時間のみを集計する
+  if (report.work_start_time != null && report.work_end_time != null) {
+    const daytimeWork = report.work_end_time - report.work_start_time - deepNightRaw;
+    const siteWork = daytimeWork - BREAK_MINUTES;
     if (siteWork >= 0) {
       result.site_work_minutes = siteWork;
     }
@@ -82,21 +92,22 @@ export function computeDerivedColumns(report: RawReport): DerivedColumns {
     result.overtime_minutes = Math.max(total - STANDARD_MINUTES, 0);
   }
 
-  // 深夜勤務時間（22:00〜翌5:00）
-  if (report.work_start_time != null && report.work_end_time != null) {
-    result.deep_night_minutes = calcDeepNightMinutes(
-      report.work_start_time,
-      report.work_end_time
-    );
-  }
-
   // 休日出勤の場合: 全労働時間を「休日出勤」列に一本化し、
   // 現場作業・現場外・残業の個別表示はリセット（重複集計防止）
   if (report.attendance_type === "休日出勤") {
-    const site = result.site_work_minutes ?? 0;
-    const travel = result.travel_office_minutes ?? 0;
-    if (result.site_work_minutes != null || result.travel_office_minutes != null) {
-      result.holiday_work_minutes = site + travel;
+    // 出社〜退勤が揃っていれば「退勤 − 出社 − 休憩」で総労働時間を算出
+    // 揃っていない場合は現場作業＋移動で代替
+    if (report.start_time != null && report.end_time != null) {
+      const total = report.end_time - report.start_time - BREAK_MINUTES;
+      if (total > 0) {
+        result.holiday_work_minutes = total;
+      }
+    } else {
+      const site = result.site_work_minutes ?? 0;
+      const travel = result.travel_office_minutes ?? 0;
+      if (result.site_work_minutes != null || result.travel_office_minutes != null) {
+        result.holiday_work_minutes = site + travel;
+      }
     }
     // 個別列はリセット（休日出勤列にすべて集約するため）
     result.site_work_minutes = null;
