@@ -43,21 +43,36 @@ export async function GET() {
     );
   }
 
-  const usedDays = usedReports?.length ?? 0;
+  const rawUsed = usedReports?.length ?? 0; // 全期間の有給取得日数（FIFO計算の入力）
   const today = new Date().toISOString().split("T")[0];
 
-  // 有効期限内の付与のみ合計
-  // pg ライブラリは date/timestamp 型を JavaScript の Date オブジェクトで返す場合があるため
-  // new Date() で正規化してから比較する（文字列との直接比較は型ミスマッチで常に false になる）
+  // ─── FIFO方式で付与ごとに消化日数を割り当て ───────────────────────────
+  // 有効期限の古い付与から順に消化日数を割り当てる。
+  // 期限切れ年度に消化した分は期限切れ付与から引かれ、有効年度の残日数は守られる。
   type GrantRow = { expiry_date: string | Date; granted_days: number | string };
-  const validGrants = (grants ?? []).filter(
-    (g: GrantRow) => new Date(g.expiry_date).toISOString().slice(0, 10) >= today
+  const allGrants = [...(grants ?? [])] as GrantRow[];
+  allGrants.sort(
+    (a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime()
   );
-  const totalGranted = validGrants.reduce(
-    (sum: number, g: GrantRow) => sum + Number(g.granted_days),
-    0
-  );
-  const remainingDays = Math.max(totalGranted - usedDays, 0);
+
+  const buckets = allGrants.map((g) => ({
+    expiryStr: new Date(g.expiry_date).toISOString().slice(0, 10),
+    granted: Number(g.granted_days),
+    remaining: Number(g.granted_days),
+  }));
+
+  let leftover = rawUsed;
+  for (const bucket of buckets) {
+    if (leftover <= 0) break;
+    const deduct = Math.min(leftover, bucket.remaining);
+    bucket.remaining -= deduct;
+    leftover -= deduct;
+  }
+
+  const validBuckets = buckets.filter((b) => b.expiryStr >= today);
+  const totalGranted = validBuckets.reduce((sum, b) => sum + b.granted, 0);
+  const remainingDays = validBuckets.reduce((sum, b) => sum + b.remaining, 0);
+  const usedDays = totalGranted - remainingDays;
 
   return NextResponse.json({
     total_granted: totalGranted,

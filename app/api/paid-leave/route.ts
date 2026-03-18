@@ -58,22 +58,49 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const usedDays = usedReports?.length ?? 0;
+  const rawUsed = usedReports?.length ?? 0; // 全期間の有給取得日数（FIFO計算の入力）
   const today = new Date().toISOString().split("T")[0];
 
-  // 有効期限内の付与合計のみを残日数計算に使用
+  // ─── FIFO方式で付与ごとに消化日数を割り当て ───────────────────────────
   // pg ライブラリは date/timestamp 型を JavaScript の Date オブジェクトで返す場合があるため
   // new Date() で正規化してから比較する（文字列との直接比較は型ミスマッチで常に false になる）
+  //
+  // 考え方（先入れ先出し）:
+  //   有効期限の古い付与から順に消化日数を割り当てる。
+  //   期限切れ付与を使い切った後、残った消化日数が有効期限内の付与に当たる。
+  //   → 期限切れ年度に消化した分は期限切れ付与から引かれ、有効年度の残日数は守られる。
+  //
+  // 例: 2025年度 10日付与(期限切れ)に5日消化 / 2026年度 10日付与(有効)
+  //   → FIFOで2025年度バケツから5日引く → 2026年度バケツは10日まるまま → 残日数 10日
   type GrantRow = { expiry_date: string | Date; granted_days: number | string };
-  const validGrants = (grants ?? []).filter(
-    (g: GrantRow) => new Date(g.expiry_date).toISOString().slice(0, 10) >= today
+  const allGrants = [...(grants ?? [])] as GrantRow[];
+  // 有効期限の古い順（昇順）でソート
+  allGrants.sort(
+    (a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime()
   );
-  const totalGranted = validGrants.reduce(
-    (sum: number, g: GrantRow) => sum + Number(g.granted_days),
-    0
-  );
-  // 残日数は 0 を下回らないよう保証
-  const remainingDays = Math.max(totalGranted - usedDays, 0);
+
+  // 各付与をバケツとして初期化
+  const buckets = allGrants.map((g) => ({
+    expiryStr: new Date(g.expiry_date).toISOString().slice(0, 10),
+    granted: Number(g.granted_days),
+    remaining: Number(g.granted_days),
+  }));
+
+  // 消化日数をFIFOで各バケツから引く
+  let leftover = rawUsed;
+  for (const bucket of buckets) {
+    if (leftover <= 0) break;
+    const deduct = Math.min(leftover, bucket.remaining);
+    bucket.remaining -= deduct;
+    leftover -= deduct;
+  }
+
+  // 有効期限内のバケツのみで集計
+  const validBuckets = buckets.filter((b) => b.expiryStr >= today);
+  const totalGranted = validBuckets.reduce((sum, b) => sum + b.granted, 0);
+  const remainingDays = validBuckets.reduce((sum, b) => sum + b.remaining, 0);
+  // 取得済み = 有効期限内の付与から消化した日数
+  const usedDays = totalGranted - remainingDays;
 
   return NextResponse.json({
     grants: grants ?? [],
