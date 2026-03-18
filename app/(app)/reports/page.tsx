@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { minutesToHHMM, hhmmToMinutes } from "@/lib/time";
 
 type Report = {
@@ -92,6 +92,15 @@ export default function ReportsPage() {
   const [rawInputs, setRawInputs] = useState<Map<string, string>>(new Map());
   // 変更済みの日付を追跡（未保存マーカー表示 & 一括保存対象の特定）
   const [dirtyDates, setDirtyDates] = useState<Set<string>>(new Set());
+
+  // useRef: レンダリングをまたいで常に最新の値を保持する。
+  // React のクロージャ問題を防ぎ、saveAll が古いデータを読むのを防ぐ。
+  const reportsRef = useRef(reports);
+  const rawInputsRef = useRef(rawInputs);
+  const dirtyDatesRef = useRef(dirtyDates);
+  reportsRef.current = reports;
+  rawInputsRef.current = rawInputs;
+  dirtyDatesRef.current = dirtyDates;
   // 時刻ダイヤル（ピッカー）の状態。null=非表示、オブジェクト=表示中
   const [picker, setPicker] = useState<{
     date: string;
@@ -153,28 +162,31 @@ export default function ReportsPage() {
   }
 
   function updateLocal(date: string, field: keyof Report, value: string | number | null) {
+    // refを即座に更新（saveAll が呼ばれたとき確実に最新値を使えるようにする）
+    const existing = reportsRef.current.get(date) ?? { report_date: date, ...EMPTY_REPORT };
+    const updated = { ...existing, [field]: value };
+    reportsRef.current = new Map(reportsRef.current);
+    reportsRef.current.set(date, updated);
+    dirtyDatesRef.current = new Set(dirtyDatesRef.current).add(date);
+
+    // React state も更新（画面の再描画のため）
     setReports((prev) => {
       const next = new Map(prev);
-      const existing = next.get(date) ?? {
-        report_date: date,
-        ...EMPTY_REPORT,
-      };
-      next.set(date, { ...existing, [field]: value });
+      next.set(date, updated);
       return next;
     });
-    // 変更済み日付として記録
     setDirtyDates((prev) => new Set(prev).add(date));
   }
 
   /**
    * 指定日の送信ペイロードを作成する。
-   * rawInputs（未コミットの入力中テキスト）があればそちらを優先する。
+   * ref（常に最新値）から読む。rawInputs（未コミットの入力中テキスト）があればそちらを優先する。
    */
   function buildRowPayload(date: string) {
-    const report = reports.get(date) ?? { report_date: date, ...EMPTY_REPORT };
+    const report = reportsRef.current.get(date) ?? { report_date: date, ...EMPTY_REPORT };
     const timeFields: Record<string, number | null> = {};
     for (const col of TIME_COLUMNS) {
-      const raw = rawInputs.get(getRawKey(date, col.key));
+      const raw = rawInputsRef.current.get(getRawKey(date, col.key));
       if (raw !== undefined) {
         const trimmed = raw.trim();
         timeFields[col.key] = trimmed === "" ? null : (hhmmToMinutes(trimmed) ?? (report[col.key] as number | null));
@@ -192,12 +204,12 @@ export default function ReportsPage() {
 
   /** 変更済みの全行を一括保存する */
   async function saveAll() {
-    // rawInputs が残っている日付も保存対象に含める
+    // ref から読む（常に最新の状態を参照するため）
     const rawInputDates = new Set<string>();
-    for (const key of rawInputs.keys()) {
+    for (const key of rawInputsRef.current.keys()) {
       rawInputDates.add(key.split("__")[0]);
     }
-    const datesToSave = [...new Set([...dirtyDates, ...rawInputDates])].filter(
+    const datesToSave = [...new Set([...dirtyDatesRef.current, ...rawInputDates])].filter(
       (d) => !isFutureDate(d)
     );
 
@@ -232,6 +244,9 @@ export default function ReportsPage() {
 
       // 保存成功 → サーバーデータを再取得して計算列を更新
       await fetchReports();
+      // ref もリセット
+      dirtyDatesRef.current = new Set();
+      rawInputsRef.current = new Map();
       setDirtyDates(new Set());
       setRawInputs(new Map());
       setMessage(`${datesToSave.length}件 を保存しました。`);
