@@ -93,6 +93,13 @@ export default function ReportsPage() {
   // 変更済みの日付を追跡（未保存マーカー表示 & 一括保存対象の特定）
   const [dirtyDates, setDirtyDates] = useState<Set<string>>(new Set());
 
+  // 有給残日数（自分の残日数をAPIから取得して表示する）
+  const [paidLeave, setPaidLeave] = useState<{
+    total_granted: number;
+    used_days: number;
+    remaining_days: number;
+  } | null>(null);
+
   // useRef: レンダリングをまたいで常に最新の値を保持する。
   // React のクロージャ問題を防ぎ、saveAll が古いデータを読むのを防ぐ。
   const reportsRef = useRef(reports);
@@ -139,9 +146,20 @@ export default function ReportsPage() {
     setReports(map);
   }, [from, to]);
 
+  // 自分の有給残日数を取得する（マウント時に一度だけ実行）
+  const fetchPaidLeave = useCallback(async () => {
+    const res = await fetch("/api/paid-leave/me");
+    if (!res.ok) return;
+    setPaidLeave(await res.json());
+  }, []);
+
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
+
+  useEffect(() => {
+    fetchPaidLeave();
+  }, [fetchPaidLeave]);
 
   function prevMonth() {
     if (month === 1) {
@@ -244,6 +262,8 @@ export default function ReportsPage() {
 
       // 保存成功 → サーバーデータを再取得して計算列を更新
       await fetchReports();
+      // 有給を選択していた場合は残日数も再取得
+      await fetchPaidLeave();
       // ref もリセット
       dirtyDatesRef.current = new Set();
       rawInputsRef.current = new Map();
@@ -486,21 +506,57 @@ export default function ReportsPage() {
         </table>
       </div>
 
-      {/* 出勤区分 月集計 */}
+      {/* 出勤区分 月集計 + 有給残日数 */}
       <div className="mt-4 rounded-lg border bg-white p-4 shadow-sm">
-        <h3 className="mb-2 text-sm font-bold text-gray-700">出勤区分 月集計</h3>
-        <div className="flex flex-wrap gap-4 text-xs text-gray-700">
-          {["出勤", "欠勤", "休日", "有給", "振休", "休日出勤"].map((type) => {
-            const count = Array.from(reports.values()).filter(
-              (r) => r.attendance_type === type
-            ).length;
-            return (
-              <div key={type} className="flex items-center gap-1">
-                <span className="font-medium text-gray-600">{type}:</span>
-                <span className="font-bold">{count}日</span>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          {/* 出勤区分 月集計 */}
+          <div>
+            <h3 className="mb-2 text-sm font-bold text-gray-700">出勤区分 月集計</h3>
+            <div className="flex flex-wrap gap-4 text-xs text-gray-700">
+              {["出勤", "欠勤", "休日", "有給", "振休", "休日出勤"].map((type) => {
+                const count = Array.from(reports.values()).filter(
+                  (r) => r.attendance_type === type
+                ).length;
+                return (
+                  <div key={type} className="flex items-center gap-1">
+                    <span className="font-medium text-gray-600">{type}:</span>
+                    <span className="font-bold">{count}日</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 有給残日数バッジ */}
+          {paidLeave !== null && (
+            <div className={`rounded-lg border px-4 py-2 text-xs ${
+              paidLeave.remaining_days === 0
+                ? "border-red-300 bg-red-50"
+                : paidLeave.remaining_days <= 3
+                  ? "border-amber-300 bg-amber-50"
+                  : "border-green-300 bg-green-50"
+            }`}>
+              <div className="mb-1 font-bold text-gray-600">有給残日数</div>
+              <div className="flex items-baseline gap-2">
+                <span className={`text-2xl font-extrabold ${
+                  paidLeave.remaining_days === 0
+                    ? "text-red-600"
+                    : paidLeave.remaining_days <= 3
+                      ? "text-amber-600"
+                      : "text-green-700"
+                }`}>
+                  {paidLeave.remaining_days}
+                </span>
+                <span className="text-gray-500">日</span>
+                <span className="text-gray-400">
+                  （付与 {paidLeave.total_granted}日 / 取得済 {paidLeave.used_days}日）
+                </span>
               </div>
-            );
-          })}
+              {paidLeave.remaining_days === 0 && (
+                <div className="mt-1 text-xs text-red-500">有給残日数がありません</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
