@@ -47,9 +47,11 @@ export async function GET() {
   const today = new Date().toISOString().split("T")[0];
 
   // 有効期限内の付与のみ合計
-  type GrantRow = { expiry_date: string; granted_days: number | string };
+  // pg ライブラリは date/timestamp 型を JavaScript の Date オブジェクトで返す場合があるため
+  // new Date() で正規化してから比較する（文字列との直接比較は型ミスマッチで常に false になる）
+  type GrantRow = { expiry_date: string | Date; granted_days: number | string };
   const validGrants = (grants ?? []).filter(
-    (g: GrantRow) => g.expiry_date >= today
+    (g: GrantRow) => new Date(g.expiry_date).toISOString().slice(0, 10) >= today
   );
   const totalGranted = validGrants.reduce(
     (sum: number, g: GrantRow) => sum + Number(g.granted_days),
