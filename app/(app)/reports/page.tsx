@@ -527,8 +527,8 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {/* 有給残日数バッジ */}
-          {paidLeave !== null && (
+          {/* 有給残日数バッジ: 付与が1日以上ある場合のみ表示（付与0件のユーザーに赤バッジが出ないよう） */}
+          {paidLeave !== null && paidLeave.total_granted > 0 && (
             <div className={`rounded-lg border px-4 py-2 text-xs ${
               paidLeave.remaining_days === 0
                 ? "border-red-300 bg-red-50"

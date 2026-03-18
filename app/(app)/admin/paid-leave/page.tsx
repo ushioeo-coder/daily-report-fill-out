@@ -237,7 +237,7 @@ export default function PaidLeavePage() {
                   return (
                     <tr key={g.id} className={`border-b last:border-0 ${expired ? "opacity-50" : ""}`}>
                       <td className="px-4 py-3 text-gray-800">{formatDate(g.grant_date)}</td>
-                      <td className="px-4 py-3 font-semibold text-gray-800">{g.granted_days}日</td>
+                      <td className="px-4 py-3 font-semibold text-gray-800">{Number(g.granted_days)}日</td>
                       <td className="px-4 py-3 text-gray-700">{formatDate(g.expiry_date)}</td>
                       <td className="px-4 py-3">
                         {expired ? (
