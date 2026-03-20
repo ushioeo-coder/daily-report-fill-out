@@ -601,7 +601,7 @@ export default function AdminReportsPage() {
           >
             <h3 className="mb-4 text-sm font-bold text-gray-700">時刻を選択</h3>
             <div className="flex items-center gap-3">
-              {/* 時セレクター（0〜29: 深夜帯は29時=翌5:00まで、それ以降は通常表記） */}
+              {/* 時セレクター（0〜33: 25-29は深夜帯、30-33は翌朝通常時間） */}
               <div className="flex flex-col items-center">
                 <label className="mb-1 text-xs text-gray-500">時</label>
                 <select
@@ -610,9 +610,11 @@ export default function AdminReportsPage() {
                   className="h-32 w-16 rounded border px-1 text-center text-sm text-gray-900"
                   size={5}
                 >
-                  {Array.from({ length: 30 }, (_, i) => (
+                  {Array.from({ length: 34 }, (_, i) => (
                     <option key={i} value={i}>
-                      {i <= 24 ? String(i).padStart(2, "0") : `${String(i).padStart(2, "0")}(${i - 24})`}
+                      {i <= 24 ? String(i).padStart(2, "0")
+                        : i <= 29 ? `${i}(翌${i - 24}時)`
+                        : `${i}(翌${i - 24}時)`}
                     </option>
                   ))}
                 </select>
