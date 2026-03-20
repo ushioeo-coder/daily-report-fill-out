@@ -26,5 +26,5 @@ export const DEEP_NIGHT_START_MIN = 22 * 60;
 /** 深夜時間帯の終了（分）: 翌5:00 = 29:00 = 1740 */
 export const DEEP_NIGHT_END_MIN = (24 + 5) * 60;
 
-/** 時刻フィールドの最大値（分）: 47:59 = 2879。夜勤対応。 */
-export const MAX_TIME_MINUTES = 2879;
+/** 時刻フィールドの最大値（分）: 29:59 = 1799。深夜帯は翌5:00(29:00)まで。 */
+export const MAX_TIME_MINUTES = 1799;

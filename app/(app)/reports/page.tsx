@@ -574,7 +574,7 @@ export default function ReportsPage() {
           >
             <h3 className="mb-4 text-sm font-bold text-gray-700">時刻を選択</h3>
             <div className="flex items-center gap-3">
-              {/* 時セレクター（0〜47: 夜勤対応） */}
+              {/* 時セレクター（0〜29: 深夜帯は29時=翌5:00まで、それ以降は通常表記） */}
               <div className="flex flex-col items-center">
                 <label className="mb-1 text-xs text-gray-500">時</label>
                 <select
@@ -583,8 +583,10 @@ export default function ReportsPage() {
                   className="h-32 w-16 rounded border px-1 text-center text-sm text-gray-900"
                   size={5}
                 >
-                  {Array.from({ length: 48 }, (_, i) => (
-                    <option key={i} value={i}>{String(i).padStart(2, "0")}</option>
+                  {Array.from({ length: 30 }, (_, i) => (
+                    <option key={i} value={i}>
+                      {i <= 24 ? String(i).padStart(2, "0") : `${String(i).padStart(2, "0")}(${i - 24})`}
+                    </option>
                   ))}
                 </select>
               </div>

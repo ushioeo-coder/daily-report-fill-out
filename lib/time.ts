@@ -8,7 +8,8 @@ export function minutesToHHMM(minutes: number): string {
 }
 
 /**
- * "HH:MM" 文字列 → 分 (0–2879) に変換。夜勤時刻（26:00等）にも対応。無効な値は null を返す。
+ * "HH:MM" 文字列 → 分 (0–1799) に変換。夜勤時刻（26:00等）にも対応。
+ * 深夜帯の上限は29:59(=1799分)。無効な値は null を返す。
  */
 export function hhmmToMinutes(hhmm: string): number | null {
   const match = hhmm.match(/^(\d{1,2}):(\d{2})$/);
@@ -21,6 +22,6 @@ export function hhmmToMinutes(hhmm: string): number | null {
 
   const total = h * 60 + m;
 
-  if (total < 0 || total > 2879) return null;
+  if (total < 0 || total > 1799) return null;
   return total;
 }
