@@ -80,18 +80,18 @@ function buildSheet(
     { width: 4.5 },  // A: 日
     { width: 4 },    // B: 曜
     { width: 10 },   // C: 出勤区分
-    { width: 8 },    // D: ①出社
-    { width: 8.5 },  // E: ②現場到着
-    { width: 8 },    // F: ③作業開始
-    { width: 8 },    // G: ④作業終了
-    { width: 8 },    // H: ⑤帰社
-    { width: 8 },    // I: ⑥退勤
-    { width: 10.5 }, // J: 移動・社内作業
-    { width: 8.5 },  // K: 現場作業
-    { width: 7 },    // L: 残業
-    { width: 8.5 },  // M: 深夜勤務
-    { width: 8.5 },  // N: 休日出勤
-    { width: 32 },   // O: 備考
+    { width: 12 },   // D: ①出社        ─┐
+    { width: 12 },   // E: ②現場到着      │
+    { width: 12 },   // F: ③作業開始      │ D〜N すべて幅12で統一
+    { width: 12 },   // G: ④作業終了      │ （折返しなしで表示できるサイズ）
+    { width: 12 },   // H: ⑤帰社          │
+    { width: 12 },   // I: ⑥退勤          │
+    { width: 12 },   // J: 移動社内        │
+    { width: 12 },   // K: 現場作業        │
+    { width: 12 },   // L: 残業            │
+    { width: 12 },   // M: 深夜勤務        │
+    { width: 12 },   // N: 休日出勤      ─┘
+    { width: 22 },   // O: 備考（D〜N を広げた分を吸収）
   ];
 
   // ─── Row 1: タイトル ────────────────────────────────────────────────────
@@ -122,21 +122,23 @@ function buildSheet(
   ws.getRow(3).height = 8;
 
   // ─── Row 4: 列ヘッダー ──────────────────────────────────────────────────
+  // ヘッダーラベル: \n（折返し）を除去し、長い名称は短縮
+  // 「移動・社内作業」→「移動社内」に短縮（幅12でも折返しなく表示できるよう）
   const headerLabels = [
     "日", "曜", "出勤区分",
     "①出社", "②現場到着", "③作業開始", "④作業終了", "⑤帰社", "⑥退勤",
-    "移動・\n社内作業", "現場\n作業", "残業",
-    "深夜\n勤務", "休日\n出勤", "備考",
+    "移動社内", "現場作業", "残業",
+    "深夜勤務", "休日出勤", "備考",
   ];
   const headerRow = ws.getRow(4);
-  headerRow.height = 40;
+  headerRow.height = 24; // 折返しなしになったため40→24に削減
   headerLabels.forEach((label, i) => {
     const col = i + 1;
     const cell = headerRow.getCell(col);
     cell.value = label;
     cell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
     cell.fill = solidFill(HEADER_BG);
-    cell.alignment = { ...centerMiddle, wrapText: true };
+    cell.alignment = { ...centerMiddle, wrapText: false }; // 折返しOFF
     // I列右・J列左は太線で「入力欄 / 集計欄」の境界を強調
     cell.border = {
       top:    THIN_BORDER,
