@@ -69,7 +69,7 @@ function buildSheet(
       orientation: "landscape",
       fitToPage: true,
       fitToWidth: 1,
-      fitToHeight: 0,
+      fitToHeight: 1, // 1ページ縦に収める（行を高くしても自動縮小でA4に収まる）
     },
   });
 
@@ -101,7 +101,7 @@ function buildSheet(
   title.font = { bold: true, size: 16, color: { argb: "FF1F3864" } };
   title.alignment = { ...centerMiddle };
   title.fill = solidFill("FFD6E4F0");
-  ws.getRow(1).height = 32;
+  ws.getRow(1).height = 36;
 
   // ─── Row 2: 社員名 ──────────────────────────────────────────────────────
   ws.mergeCells("A2:C2");
@@ -116,10 +116,10 @@ function buildSheet(
   ws.getCell("D2").font = { bold: true, size: 12 };
   ws.getCell("D2").alignment = { horizontal: "left", vertical: "middle" };
   ws.getCell("D2").border = thinAllBorders();
-  ws.getRow(2).height = 24;
+  ws.getRow(2).height = 26;
 
   // ─── Row 3: 空行 ────────────────────────────────────────────────────────
-  ws.getRow(3).height = 8;
+  ws.getRow(3).height = 6;
 
   // ─── Row 4: 列ヘッダー ──────────────────────────────────────────────────
   // ヘッダーラベル: \n（折返し）を除去し、長い名称は短縮
@@ -131,7 +131,7 @@ function buildSheet(
     "深夜勤務", "休日出勤", "備考",
   ];
   const headerRow = ws.getRow(4);
-  headerRow.height = 24; // 折返しなしになったため40→24に削減
+  headerRow.height = 30; // ヘッダー行は少し高めに
   headerLabels.forEach((label, i) => {
     const col = i + 1;
     const cell = headerRow.getCell(col);
@@ -160,7 +160,7 @@ function buildSheet(
   for (let day = 1; day <= 31; day++) {
     const rowNum = DATA_START + day - 1;
     const dataRow = ws.getRow(rowNum);
-    dataRow.height = 22; // 18pt → 22pt に増量して見やすく
+    dataRow.height = 28; // データ行: 見やすい高さに（fitToHeight:1で自動縮小しA4に収める）
 
     // 当月に存在しない日（例：2月の30・31日）
     if (day > lastDay) {
@@ -309,7 +309,7 @@ function buildSheet(
   // ─── 合計行 ─────────────────────────────────────────────────────────────
   const SUM_ROW = DATA_START + 31; // 36行目
   const sumRow = ws.getRow(SUM_ROW);
-  sumRow.height = 26; // 22pt → 26pt に増量
+  sumRow.height = 32; // 合計行は少し高めに
 
   ws.mergeCells(`A${SUM_ROW}:I${SUM_ROW}`);
   const sumLabel = sumRow.getCell(1);
@@ -353,10 +353,13 @@ function buildSheet(
     bottom: MEDIUM_BORDER, right: MEDIUM_BORDER,
   };
 
+  // ─── 合計行と区分カウント行の間（空行37）───────────────────────────────
+  ws.getRow(SUM_ROW + 1).height = 6; // 空行は最小限
+
   // ─── 出勤区分別カウント行 ─────────────────────────────────────────────
   const COUNT_ROW = SUM_ROW + 2; // 38行目
   const countRow = ws.getRow(COUNT_ROW);
-  countRow.height = 22; // 20pt → 22pt に増量
+  countRow.height = 28; // 区分別カウント行
 
   ws.mergeCells(`A${COUNT_ROW}:B${COUNT_ROW}`);
   const countLabel = countRow.getCell(1);
