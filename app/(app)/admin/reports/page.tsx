@@ -105,6 +105,13 @@ export default function AdminReportsPage() {
   // 変更済みの日付を追跡
   const [dirtyDates, setDirtyDates] = useState<Set<string>>(new Set());
 
+  // 選択中ユーザーの有給残日数
+  const [paidLeave, setPaidLeave] = useState<{
+    total_granted: number;
+    used_days: number;
+    remaining_days: number;
+  } | null>(null);
+
   // useRef: レンダリングをまたいで常に最新の値を保持する（クロージャ問題を防ぐ）
   const reportsRef = useRef(reports);
   const rawInputsRef = useRef(rawInputs);
@@ -137,6 +144,21 @@ export default function AdminReportsPage() {
       }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 選択ユーザーの有給残日数を取得
+  useEffect(() => {
+    if (!selectedUserId) return;
+    (async () => {
+      const res = await fetch(`/api/paid-leave?user_id=${selectedUserId}`);
+      if (!res.ok) { setPaidLeave(null); return; }
+      const data = await res.json();
+      setPaidLeave({
+        total_granted: data.total_granted ?? 0,
+        used_days: data.used_days ?? 0,
+        remaining_days: data.remaining_days ?? 0,
+      });
+    })();
+  }, [selectedUserId]);
 
   // 日報取得
   const fetchReports = useCallback(async () => {
@@ -511,24 +533,60 @@ export default function AdminReportsPage() {
         </table>
       </div>
 
-      {/* 出勤区分 月集計 */}
-      <div className="mt-4 rounded-lg border bg-white p-4 shadow-sm">
-        <h3 className="mb-2 text-sm font-bold text-gray-700">
-          {selectedUser ? `${selectedUser.name} さん ` : ""}出勤区分 月集計
-        </h3>
-        <div className="flex flex-wrap gap-4 text-xs text-gray-700">
-          {["出勤", "欠勤", "休日", "有給", "振休", "休日出勤"].map((type) => {
-            const count = Array.from(reports.values()).filter(
-              (r) => r.attendance_type === type
-            ).length;
-            return (
-              <div key={type} className="flex items-center gap-1">
-                <span className="font-medium text-gray-600">{type}:</span>
-                <span className="font-bold">{count}日</span>
-              </div>
-            );
-          })}
+      {/* 出勤区分 月集計 + 有給残日数 */}
+      <div className="mt-4 flex flex-wrap gap-4">
+        {/* 出勤区分別カウント */}
+        <div className="flex-1 rounded-lg border bg-white p-4 shadow-sm">
+          <h3 className="mb-2 text-sm font-bold text-gray-700">
+            {selectedUser ? `${selectedUser.name} さん ` : ""}出勤区分 月集計
+          </h3>
+          <div className="flex flex-wrap gap-4 text-xs text-gray-700">
+            {["出勤", "欠勤", "休日", "有給", "振休", "休日出勤"].map((type) => {
+              const count = Array.from(reports.values()).filter(
+                (r) => r.attendance_type === type
+              ).length;
+              return (
+                <div key={type} className="flex items-center gap-1">
+                  <span className="font-medium text-gray-600">{type}:</span>
+                  <span className="font-bold">{count}日</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
+
+        {/* 有給残日数バッジ: 付与が1日以上あるユーザーのみ表示 */}
+        {paidLeave !== null && paidLeave.total_granted > 0 && (
+          <div
+            className={`min-w-[160px] rounded-lg border p-4 shadow-sm text-center ${
+              paidLeave.remaining_days === 0
+                ? "border-red-300 bg-red-50"
+                : paidLeave.remaining_days <= 3
+                ? "border-yellow-300 bg-yellow-50"
+                : "border-green-300 bg-green-50"
+            }`}
+          >
+            <div className="mb-1 text-xs font-bold text-gray-600">有給残日数</div>
+            <div
+              className={`text-3xl font-extrabold ${
+                paidLeave.remaining_days === 0
+                  ? "text-red-600"
+                  : paidLeave.remaining_days <= 3
+                  ? "text-yellow-600"
+                  : "text-green-600"
+              }`}
+            >
+              {paidLeave.remaining_days}
+              <span className="text-base font-bold"> 日</span>
+            </div>
+            <div className="mt-1 text-xs text-gray-500">
+              （付与 {paidLeave.total_granted}日 / 取得済 {paidLeave.used_days}日）
+            </div>
+            {paidLeave.remaining_days === 0 && (
+              <div className="mt-1 text-xs text-red-500">有給残日数がありません</div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 時刻ダイヤル モーダル */}
