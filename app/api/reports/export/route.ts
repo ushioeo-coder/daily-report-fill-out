@@ -122,14 +122,21 @@ function buildSheet(
     "深夜\n勤務", "休日\n出勤", "備考",
   ];
   const headerRow = ws.getRow(4);
-  headerRow.height = 38;
+  headerRow.height = 40;
   headerLabels.forEach((label, i) => {
-    const cell = headerRow.getCell(i + 1);
+    const col = i + 1;
+    const cell = headerRow.getCell(col);
     cell.value = label;
     cell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
     cell.fill = solidFill(HEADER_BG);
     cell.alignment = { ...centerMiddle, wrapText: true };
-    cell.border = thinAllBorders();
+    // I列右・J列左は太線で「入力欄 / 集計欄」の境界を強調
+    cell.border = {
+      top:    THIN_BORDER,
+      left:   col === 10 ? MEDIUM_BORDER : THIN_BORDER,
+      bottom: THIN_BORDER,
+      right:  col === 9  ? MEDIUM_BORDER : THIN_BORDER,
+    };
   });
 
   // ─── Rows 5〜35: データ行（1〜31日） ────────────────────────────────────
@@ -144,7 +151,7 @@ function buildSheet(
   for (let day = 1; day <= 31; day++) {
     const rowNum = DATA_START + day - 1;
     const dataRow = ws.getRow(rowNum);
-    dataRow.height = 18;
+    dataRow.height = 22; // 18pt → 22pt に増量して見やすく
 
     // 当月に存在しない日（例：2月の30・31日）
     if (day > lastDay) {
@@ -153,9 +160,14 @@ function buildSheet(
         cell.fill = solidFill(GRAY_BG);
         cell.border = {
           top:    { style: "thin", color: { argb: "FFBFBFBF" } },
-          left:   { style: "thin", color: { argb: "FFBFBFBF" } },
+          // I列右・J列左は太線で区切り強調
+          left:   c === 10
+            ? MEDIUM_BORDER
+            : { style: "thin", color: { argb: "FFBFBFBF" } },
           bottom: { style: "thin", color: { argb: "FFBFBFBF" } },
-          right:  { style: "thin", color: { argb: "FFBFBFBF" } },
+          right:  c === 9
+            ? MEDIUM_BORDER
+            : { style: "thin", color: { argb: "FFBFBFBF" } },
         };
       }
       continue;
@@ -191,11 +203,16 @@ function buildSheet(
       const cell = dataRow.getCell(col);
       cell.value = value ?? null;
       cell.fill = solidFill(bgColor);
+      // I列(9)右・J列(10)左は太線で「入力欄 / 集計欄」の境界を強調
       cell.border = {
         top:    { style: "thin", color: { argb: "FFBFBFBF" } },
-        left:   { style: "thin", color: { argb: "FFBFBFBF" } },
+        left:   col === 10
+          ? MEDIUM_BORDER
+          : { style: "thin", color: { argb: "FFBFBFBF" } },
         bottom: { style: "thin", color: { argb: "FFBFBFBF" } },
-        right:  { style: "thin", color: { argb: "FFBFBFBF" } },
+        right:  col === 9
+          ? MEDIUM_BORDER
+          : { style: "thin", color: { argb: "FFBFBFBF" } },
       };
       cell.alignment = opts?.align ?? centerMiddle;
       if (opts?.numFmt) cell.numFmt = opts.numFmt;
@@ -283,7 +300,7 @@ function buildSheet(
   // ─── 合計行 ─────────────────────────────────────────────────────────────
   const SUM_ROW = DATA_START + 31; // 36行目
   const sumRow = ws.getRow(SUM_ROW);
-  sumRow.height = 22;
+  sumRow.height = 26; // 22pt → 26pt に増量
 
   ws.mergeCells(`A${SUM_ROW}:I${SUM_ROW}`);
   const sumLabel = sumRow.getCell(1);
@@ -293,7 +310,8 @@ function buildSheet(
   sumLabel.alignment = centerMiddle;
   sumLabel.border = {
     top: MEDIUM_BORDER, left: MEDIUM_BORDER,
-    bottom: MEDIUM_BORDER, right: THIN_BORDER,
+    // I列（マージ末尾）の右も太線で区切り強調
+    bottom: MEDIUM_BORDER, right: MEDIUM_BORDER,
   };
 
   const writeSumCell = (col: number, minutes: number, isLast = false) => {
@@ -305,7 +323,8 @@ function buildSheet(
     cell.alignment = centerMiddle;
     cell.border = {
       top: MEDIUM_BORDER,
-      left: THIN_BORDER,
+      // J列(10)左は太線
+      left: col === 10 ? MEDIUM_BORDER : THIN_BORDER,
       bottom: MEDIUM_BORDER,
       right: isLast ? MEDIUM_BORDER : THIN_BORDER,
     };
@@ -328,7 +347,7 @@ function buildSheet(
   // ─── 出勤区分別カウント行 ─────────────────────────────────────────────
   const COUNT_ROW = SUM_ROW + 2; // 38行目
   const countRow = ws.getRow(COUNT_ROW);
-  countRow.height = 20;
+  countRow.height = 22; // 20pt → 22pt に増量
 
   ws.mergeCells(`A${COUNT_ROW}:B${COUNT_ROW}`);
   const countLabel = countRow.getCell(1);
