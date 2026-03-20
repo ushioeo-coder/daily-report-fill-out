@@ -48,13 +48,20 @@ function thinAllBorders(): Partial<ExcelJS.Borders> {
  *   J:移動・社内作業  K:現場作業  L:残業  M:深夜勤務  N:休日出勤
  *   O:備考
  */
+type PaidLeaveInfo = {
+  total_granted: number;
+  used_days: number;
+  remaining_days: number;
+};
+
 function buildSheet(
   wb: ExcelJS.Workbook,
   sheetName: string,
   userName: string,
   year: number,
   month: number,
-  reportsMap: Map<string, Record<string, unknown>>
+  reportsMap: Map<string, Record<string, unknown>>,
+  paidLeave?: PaidLeaveInfo
 ) {
   const ws = wb.addWorksheet(sheetName, {
     pageSetup: {
@@ -351,7 +358,7 @@ function buildSheet(
 
   ws.mergeCells(`A${COUNT_ROW}:B${COUNT_ROW}`);
   const countLabel = countRow.getCell(1);
-  countLabel.value = "出勤区分別";
+  countLabel.value = "区分別"; // "出勤区分別" は文字が見切れるため短縮
   countLabel.font = { bold: true, size: 10 };
   countLabel.alignment = centerMiddle;
   countLabel.fill = solidFill(COUNT_BG);
@@ -382,6 +389,35 @@ function buildSheet(
     vc.alignment = centerMiddle;
     vc.border = thinAllBorders();
   });
+
+  // ─── O列（備考列の余白）に有給残日数を表示 ────────────────────────────
+  // 合計行のO・空行37・区分カウント行のOを縦結合して有給残日数バッジとして使用
+  if (paidLeave && paidLeave.total_granted > 0) {
+    // SUM_ROW〜COUNT_ROW の O列を縦結合（3行分）
+    ws.mergeCells(`O${SUM_ROW}:O${COUNT_ROW}`);
+    const plCell = sumRow.getCell(15); // mergeCells後は先頭セルに値を入れる
+
+    const remaining = paidLeave.remaining_days;
+    const bgArgb =
+      remaining === 0 ? "FFFFD7D7" :   // 赤系（残0日）
+      remaining <= 3  ? "FFFFF2CC" :   // 黄系（残3日以下）
+                        "FFE2EFDA";    // 緑系（余裕あり）
+    const textArgb =
+      remaining === 0 ? "FFCC0000" :
+      remaining <= 3  ? "FF7F6000" :
+                        "FF375623";
+
+    plCell.value =
+      `有給残 ${remaining}日\n` +
+      `(付与${paidLeave.total_granted}日 / 取得${paidLeave.used_days}日)`;
+    plCell.font = { bold: true, size: 11, color: { argb: textArgb } };
+    plCell.fill = solidFill(bgArgb);
+    plCell.alignment = { ...centerMiddle, wrapText: true };
+    plCell.border = {
+      top: MEDIUM_BORDER, left: THIN_BORDER,
+      bottom: MEDIUM_BORDER, right: MEDIUM_BORDER,
+    };
+  }
 }
 
 // ─── API ハンドラー ──────────────────────────────────────────────────────────
@@ -496,6 +532,71 @@ export async function POST(req: NextRequest) {
     userReportMap.get(r.user_id)!.set(dateKey, r as Record<string, unknown>);
   }
 
+  // ─── 有給残日数を全対象ユーザー分まとめて取得（FIFO方式） ────────────
+  // カスタムクライアントは .in() 未対応のため、ユーザーごとに並列クエリを実行
+  const userIdList = usersToExport.map((u) => u.id);
+
+  const [grantsResults, usedResults] = await Promise.all([
+    Promise.all(
+      userIdList.map((uid) =>
+        supabase
+          .from("paid_leave_grants")
+          .select("user_id, granted_days, expiry_date")
+          .eq("user_id", uid)
+          .order("expiry_date", { ascending: true })
+      )
+    ),
+    Promise.all(
+      userIdList.map((uid) =>
+        supabase
+          .from("daily_reports")
+          .select("user_id")
+          .eq("user_id", uid)
+          .eq("attendance_type", "有給")
+      )
+    ),
+  ]);
+
+  const allGrants  = grantsResults.flatMap((r) => (r.data ?? []) as { user_id: string; granted_days: number | string; expiry_date: string | Date }[]);
+  const allUsedRows = usedResults.flatMap((r)  => (r.data ?? []) as { user_id: string }[]);
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const userPaidLeaveMap = new Map<string, PaidLeaveInfo>();
+
+  for (const uid of userIdList) {
+    // 有効期限の古い順にソートされたバケツを作成
+    const grants = allGrants
+      .filter((g) => g.user_id === uid)
+      .sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime());
+
+    const rawUsed = allUsedRows.filter((r) => r.user_id === uid).length;
+
+    const buckets = grants.map((g) => ({
+      expiryStr: new Date(g.expiry_date).toISOString().slice(0, 10),
+      granted:   Number(g.granted_days),
+      remaining: Number(g.granted_days),
+    }));
+
+    // FIFO: 古い付与から順に消化を割り当て
+    let leftover = rawUsed;
+    for (const b of buckets) {
+      if (leftover <= 0) break;
+      const deduct = Math.min(leftover, b.remaining);
+      b.remaining -= deduct;
+      leftover -= deduct;
+    }
+
+    const validBuckets  = buckets.filter((b) => b.expiryStr >= todayStr);
+    const totalGranted  = validBuckets.reduce((s, b) => s + b.granted, 0);
+    const remainingDays = validBuckets.reduce((s, b) => s + b.remaining, 0);
+
+    userPaidLeaveMap.set(uid, {
+      total_granted:  totalGranted,
+      used_days:      totalGranted - remainingDays,
+      remaining_days: remainingDays,
+    });
+  }
+
   // ─── Excel を生成 ─────────────────────────────────────────────────────
   const wb = new ExcelJS.Workbook();
   wb.creator  = "日報システム";
@@ -511,7 +612,11 @@ export async function POST(req: NextRequest) {
       finalName = `${safeName.substring(0, 28)}_${dup++}`;
     }
 
-    buildSheet(wb, finalName, user.name, year, month, userReportMap.get(user.id)!);
+    buildSheet(
+      wb, finalName, user.name, year, month,
+      userReportMap.get(user.id)!,
+      userPaidLeaveMap.get(user.id)
+    );
   }
 
   // ─── バッファ出力 ─────────────────────────────────────────────────────
