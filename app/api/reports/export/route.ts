@@ -16,9 +16,8 @@ const DAYS_JA = ["日", "月", "火", "水", "木", "金", "土"];
 
 // ─── スタイル定数 ────────────────────────────────────────────────────────────
 const HEADER_BG   = "FF4472C4"; // 列ヘッダー：青
-const SUNDAY_BG   = "FFFFD7D7"; // 日曜行：薄赤
-const SATURDAY_BG = "FFD7E8FF"; // 土曜行：薄青
-const WEEKDAY_BG  = "FFFFFFFF"; // 平日行：白
+const SUNDAY_BG   = "FFDBEAFE"; // 法定休日行：薄青（日報画面と統一）
+const WEEKDAY_BG  = "FFFFFFFF"; // 通常日行：白
 const SUMMARY_BG  = "FFE2EFDA"; // 合計行：薄緑
 const COUNT_BG    = "FFD9E1F2"; // 区分カウント行：薄紫
 const GRAY_BG     = "FFD9D9D9"; // 当月外の日：グレー
@@ -61,7 +60,8 @@ function buildSheet(
   year: number,
   month: number,
   reportsMap: Map<string, Record<string, unknown>>,
-  paidLeave?: PaidLeaveInfo
+  paidLeave?: PaidLeaveInfo,
+  holidaySet: Set<string> = new Set()
 ) {
   const ws = wb.addWorksheet(sheetName, {
     pageSetup: {
@@ -185,9 +185,10 @@ function buildSheet(
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const d = new Date(dateStr + "T00:00:00");
     const dow = d.getDay(); // 0=日, 6=土
-    const isSun = dow === 0;
-    const isSat = dow === 6;
-    const bgColor = isSun ? SUNDAY_BG : isSat ? SATURDAY_BG : WEEKDAY_BG;
+    // 管理者が設定した法定休日かどうか
+    const isHoliday = holidaySet.has(dateStr);
+    // 法定休日なら薄青、それ以外は白
+    const bgColor = isHoliday ? SUNDAY_BG : WEEKDAY_BG;
 
     const report = reportsMap.get(dateStr) ?? null;
     const derived = report ? computeDerivedColumns(report as Parameters<typeof computeDerivedColumns>[0]) : null;
@@ -231,25 +232,24 @@ function buildSheet(
     // A: 日
     setCell(1, day);
 
-    // B: 曜
+    // B: 曜（法定休日のみ赤文字。土日は黒のまま）
     setCell(2, DAYS_JA[dow], {
-      font: isSun
+      font: isHoliday
         ? { bold: true, color: { argb: "FFCC0000" } }
-        : isSat
-        ? { bold: true, color: { argb: "FF0070C0" } }
         : undefined,
     });
 
     if (!report) {
-      // データなし → 日・曜以外は空欄
-      for (let c = 3; c <= 15; c++) setCell(c, null);
+      // データなし → 法定休日なら出勤区分欄に「休日」、それ以外は空欄
+      for (let c = 3; c <= 15; c++) setCell(c, c === 3 && isHoliday ? "休日" : null);
       continue;
     }
 
     const r = report as Record<string, unknown>;
 
-    // C: 出勤区分
-    setCell(3, (r.attendance_type as string) ?? null);
+    // C: 出勤区分（未入力かつ法定休日 → 「休日」と自動表示）
+    const attendanceType = (r.attendance_type as string) ?? null;
+    setCell(3, !attendanceType && isHoliday ? "休日" : attendanceType);
 
     // D〜I: 時刻（分 → Excel 時刻）
     const timeKeys = [
@@ -602,6 +602,23 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // ─── 当月の法定休日を取得（管理者が設定した休日をExcelに反映） ──────────
+  const holidayFrom = `${year}-${String(month).padStart(2, "0")}-01`;
+  const holidayTo   = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+
+  const { data: holidayRows } = await supabase
+    .from("company_holidays")
+    .select("holiday_date")
+    .gte("holiday_date", holidayFrom)
+    .lte("holiday_date", holidayTo);
+
+  const holidaySet = new Set<string>(
+    (holidayRows ?? []).map((h: { holiday_date: string | Date }) => {
+      const d = h.holiday_date;
+      return d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+    })
+  );
+
   // ─── Excel を生成 ─────────────────────────────────────────────────────
   const wb = new ExcelJS.Workbook();
   wb.creator  = "日報システム";
@@ -620,7 +637,8 @@ export async function POST(req: NextRequest) {
     buildSheet(
       wb, finalName, user.name, year, month,
       userReportMap.get(user.id)!,
-      userPaidLeaveMap.get(user.id)
+      userPaidLeaveMap.get(user.id),
+      holidaySet
     );
   }
 

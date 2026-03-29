@@ -1,6 +1,10 @@
 import "server-only";
 import pg from "pg";
 
+// DATE型（OID: 1082）をDateオブジェクトではなく "YYYY-MM-DD" 文字列で返す。
+// デフォルトではDateオブジェクトに変換されるため、JST環境で1日ずれるバグが発生する。
+pg.types.setTypeParser(1082, (val: string) => val);
+
 const DATABASE_URL =
   process.env.DATABASE_URL ||
   "postgresql://app_user:app_password@localhost:5432/daily_report";
