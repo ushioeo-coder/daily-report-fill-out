@@ -52,6 +52,14 @@ const EMPTY_REPORT_FIELDS = {
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
+/** 月の暦日数ごとの法定労働時間上限（分）: 週40時間 × 月の日数 / 7 */
+const STATUTORY_MINUTES: Record<28 | 29 | 30 | 31, number> = {
+  28: 9600,  // 160時間00分
+  29: 9942,  // 165時間42分
+  30: 10284, // 171時間24分
+  31: 10626, // 177時間06分
+};
+
 function getWeekday(dateStr: string): string {
   return WEEKDAYS[new Date(dateStr + "T00:00:00").getDay()];
 }
@@ -102,6 +110,12 @@ export default function AdminReportsPage() {
 
   // 法定休日の日付セット
   const [holidays, setHolidays] = useState<Set<string>>(new Set());
+
+  // 法定労働時間の計算基準日数（月が変わったら自動更新、手動変更も可）
+  const [legalDays, setLegalDays] = useState<28 | 29 | 30 | 31>(() => {
+    const d = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    return d as 28 | 29 | 30 | 31;
+  });
 
   // 選択中ユーザーの有給残日数
   const [paidLeave, setPaidLeave] = useState<{
@@ -182,6 +196,11 @@ export default function AdminReportsPage() {
     reportsRef.current = map;
     setReports(map);
   }, [from, to, selectedUserId]);
+
+  // 月が変わったら法定日数を実際の日数に自動リセット
+  useEffect(() => {
+    setLegalDays(days.length as 28 | 29 | 30 | 31);
+  }, [days.length]);
 
   useEffect(() => { fetchHolidays(); }, [fetchHolidays]);
 
@@ -317,6 +336,22 @@ export default function AdminReportsPage() {
   }
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
+
+  // 月合計の集計（tfoot・サマリーパネル共用）
+  const allReports = Array.from(reports.values());
+  const sumTravel    = allReports.reduce((acc, r) => acc + (r.travel_office_minutes ?? 0), 0);
+  const sumSite      = allReports.reduce((acc, r) => acc + (r.site_work_minutes ?? 0), 0);
+  const sumOvertime  = allReports.reduce((acc, r) => acc + (r.overtime_minutes ?? 0), 0);
+  const sumDeepNight = allReports.reduce((acc, r) => acc + (r.deep_night_minutes ?? 0), 0);
+  const sumHoliday   = allReports.reduce((acc, r) => acc + (r.holiday_work_minutes ?? 0), 0);
+  // 総労働時間 = 現場作業 + 移動・社内作業の合計
+  const totalWorkMinutes = sumSite + sumTravel;
+  // 法定労働時間（プルダウン選択値に対応する分数）
+  const legalWorkMinutes = STATUTORY_MINUTES[legalDays];
+  // 月次超過 = 総労働時間 - 法定労働時間（マイナスもそのまま表示）
+  const monthlyExcess = totalWorkMinutes - legalWorkMinutes;
+  // 給与明細に記載する労働時間 = 月次超過 と 日次残業合計 の大きい方
+  const laborMinutes = Math.max(monthlyExcess, sumOvertime);
 
   return (
     <div>
@@ -523,26 +558,16 @@ export default function AdminReportsPage() {
             })}
           </tbody>
           <tfoot>
-            {(() => {
-              const allReports = Array.from(reports.values());
-              const sumTravel    = allReports.reduce((acc, r) => acc + (r.travel_office_minutes ?? 0), 0);
-              const sumSite      = allReports.reduce((acc, r) => acc + (r.site_work_minutes ?? 0), 0);
-              const sumOvertime  = allReports.reduce((acc, r) => acc + (r.overtime_minutes ?? 0), 0);
-              const sumDeepNight = allReports.reduce((acc, r) => acc + (r.deep_night_minutes ?? 0), 0);
-              const sumHoliday   = allReports.reduce((acc, r) => acc + (r.holiday_work_minutes ?? 0), 0);
-              return (
-                <tr className="border-t-2 border-gray-300 bg-gray-100 font-bold text-xs text-gray-700">
-                  {/* 日・曜・出勤区分・時刻6列 の空白（合計9セル） */}
-                  <td className="px-2 py-1 text-right text-gray-500" colSpan={9}>合計</td>
-                  <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumTravel)}</td>
-                  <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumSite)}</td>
-                  <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumOvertime)}</td>
-                  <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumDeepNight)}</td>
-                  <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumHoliday)}</td>
-                  <td className="px-2 py-1"></td>
-                </tr>
-              );
-            })()}
+            <tr className="border-t-2 border-gray-300 bg-gray-100 font-bold text-xs text-gray-700">
+              {/* 日・曜・出勤区分・時刻6列 の空白（合計9セル） */}
+              <td className="px-2 py-1 text-right text-gray-500" colSpan={9}>合計</td>
+              <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumTravel)}</td>
+              <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumSite)}</td>
+              <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumOvertime)}</td>
+              <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumDeepNight)}</td>
+              <td className="px-2 py-1 whitespace-nowrap">{formatMinutes(sumHoliday)}</td>
+              <td className="px-2 py-1"></td>
+            </tr>
           </tfoot>
         </table>
       </div>
@@ -601,6 +626,99 @@ export default function AdminReportsPage() {
             )}
           </div>
         )}
+      </div>
+
+      {/* 労働時間サマリー + 参照テーブル */}
+      <div className="mt-4 flex flex-wrap gap-4">
+        {/* 左: 労働時間集計パネル */}
+        <div className="flex-1 min-w-[280px] rounded-lg border bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-bold text-gray-700">労働時間集計</h3>
+          <table className="w-full text-xs border-collapse">
+            <tbody>
+              <tr className="border-b border-gray-100">
+                <td className="py-1.5 pr-4 font-medium text-gray-600 whitespace-nowrap">総労働時間</td>
+                <td className="py-1.5 font-bold text-gray-900">{formatMinutes(totalWorkMinutes)}</td>
+              </tr>
+              <tr className="border-b border-gray-100">
+                <td className="py-1.5 pr-4 font-medium text-gray-600 whitespace-nowrap">法定労働時間</td>
+                <td className="py-1.5">
+                  <select
+                    value={legalDays}
+                    onChange={(e) => setLegalDays(Number(e.target.value) as 28 | 29 | 30 | 31)}
+                    className="rounded border px-2 py-0.5 text-xs text-gray-900 focus:ring-1 focus:ring-blue-500"
+                  >
+                    {([28, 29, 30, 31] as const).map((d) => (
+                      <option key={d} value={d}>
+                        {d}日 — {formatMinutes(STATUTORY_MINUTES[d])}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+              <tr className="border-b border-gray-100">
+                <td className="py-1.5 pr-4 font-medium text-gray-600 whitespace-nowrap">総労働時間-法定労働時間</td>
+                <td className={`py-1.5 font-bold ${monthlyExcess > 0 ? "text-red-600" : "text-gray-900"}`}>
+                  {formatMinutes(monthlyExcess)}
+                </td>
+              </tr>
+              <tr>
+                <td className="py-1.5 pr-4 font-medium text-gray-600 whitespace-nowrap">
+                  労働時間
+                  <span className="ml-1 text-gray-400">（給与明細記載）</span>
+                </td>
+                <td className="py-1.5 font-bold text-blue-700">{formatMinutes(laborMinutes)}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="mt-2 text-xs text-gray-400">
+            ※ 総労働時間-法定労働時間 と 残業合計（{formatMinutes(sumOvertime)}）の多い方を採用
+          </p>
+        </div>
+
+        {/* 右: 月の暦日数別 法定労働時間 参照テーブル */}
+        <div className="rounded-lg border bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-bold text-gray-700">対象期間が1か月の場合の上限時間</h3>
+          <table className="text-xs border-collapse">
+            <thead>
+              <tr>
+                <th className="border border-gray-300 px-3 py-1.5 bg-gray-50 font-medium text-gray-600" rowSpan={2}>
+                  週の法定<br />労働時間
+                </th>
+                <th className="border border-gray-300 px-3 py-1 bg-gray-50 font-medium text-gray-600 text-center" colSpan={4}>
+                  月の暦日数
+                </th>
+              </tr>
+              <tr>
+                {([28, 29, 30, 31] as const).map((d) => (
+                  <th
+                    key={d}
+                    className={`border border-gray-300 px-3 py-1 text-center font-medium ${
+                      legalDays === d ? "bg-blue-100 text-blue-700" : "bg-gray-50 text-gray-600"
+                    }`}
+                  >
+                    {d}日
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="border border-gray-300 px-3 py-1.5 text-center font-medium text-gray-700">40</td>
+                {([28, 29, 30, 31] as const).map((d) => (
+                  <td
+                    key={d}
+                    className={`border border-gray-300 px-3 py-1.5 text-center ${
+                      legalDays === d ? "bg-blue-50 font-bold text-blue-700" : "text-gray-700"
+                    }`}
+                  >
+                    {formatMinutes(STATUTORY_MINUTES[d])}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+          <p className="mt-1 text-xs text-gray-400">（単位=○時間：○分）</p>
+        </div>
       </div>
 
       {/* 時刻ダイヤル モーダル */}
