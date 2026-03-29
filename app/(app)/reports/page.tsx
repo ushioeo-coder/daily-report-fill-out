@@ -29,7 +29,7 @@ export default async function ReportsPage() {
         ? row.holiday_date.slice(0, 10)
         : new Date(row.holiday_date).toISOString().slice(0, 10)
     )
-    .filter((d) => d.startsWith(prefix));
+    .filter((d: string) => d.startsWith(prefix));
 
 
   // クライアントコンポーネントに初期休日データを渡す
