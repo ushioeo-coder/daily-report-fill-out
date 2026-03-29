@@ -482,10 +482,18 @@ function buildSheet(
   noteCell.fill = solidFill("FFFFFFFF");
   noteCell.alignment = { horizontal: "left", vertical: "middle", indent: 1 };
 
-  // ── 右側: 月の暦日数別 法定労働時間 参照テーブル (I-O列) ────────────
-  const REF_COL_START = 9; // I列
+  // ── 右側: 月の暦日数別 法定労働時間 参照テーブル (H-O列) ────────────
+  // H列から開始することで左側パネル(A-G)との隙間をなくす
+  // 列割当: H-I(週の法定) | J-M(28〜31日) | N-O(単位注記)
+  const REF_COL_START = 8; // H列
 
-  // ヘッダー行（LABOR_START）
+  const REF_R2 = LABOR_START + 1;
+  const REF_R3 = LABOR_START + 2;
+  const REF_R4 = LABOR_START + 3;
+  const dayLabels = [28, 29, 30, 31] as const;
+  const refValues: Record<number, string> = { 28: "160:00", 29: "165:42", 30: "171:24", 31: "177:06" };
+
+  // ヘッダー行（H-O 横結合）
   ws.mergeCells(LABOR_START, REF_COL_START, LABOR_START, 15);
   const refHeaderCell = ws.getRow(LABOR_START).getCell(REF_COL_START);
   refHeaderCell.value = "対象期間が1か月の場合の上限時間";
@@ -494,10 +502,9 @@ function buildSheet(
   refHeaderCell.alignment = centerMiddle;
   refHeaderCell.border = thinAllBorders();
 
-  // 2行目: 週の法定労働時間 / 月の暦日数
-  const REF_R2 = LABOR_START + 1;
+  // 週の法定労働時間 (H-I, REF_R2〜REF_R3 縦2行結合)
   ws.getRow(REF_R2).height = 22;
-  ws.mergeCells(REF_R2, REF_COL_START, REF_R2 + 1, REF_COL_START + 1); // I-J 縦結合2行
+  ws.mergeCells(REF_R2, REF_COL_START, REF_R3, REF_COL_START + 1);
   const weekCell = ws.getRow(REF_R2).getCell(REF_COL_START);
   weekCell.value = "週の法定\n労働時間";
   weekCell.font = { bold: true, size: 9 };
@@ -505,7 +512,8 @@ function buildSheet(
   weekCell.alignment = { ...centerMiddle, wrapText: true };
   weekCell.border = thinAllBorders();
 
-  ws.mergeCells(REF_R2, REF_COL_START + 2, REF_R2, REF_COL_START + 5); // K-N 月の暦日数
+  // 月の暦日数 (J-M, REF_R2 のみ横結合)
+  ws.mergeCells(REF_R2, REF_COL_START + 2, REF_R2, REF_COL_START + 5);
   const daysHeaderCell = ws.getRow(REF_R2).getCell(REF_COL_START + 2);
   daysHeaderCell.value = "月の暦日数";
   daysHeaderCell.font = { bold: true, size: 9 };
@@ -513,7 +521,8 @@ function buildSheet(
   daysHeaderCell.alignment = centerMiddle;
   daysHeaderCell.border = thinAllBorders();
 
-  ws.mergeCells(REF_R2, REF_COL_START + 6, REF_R2 + 1, REF_COL_START + 6); // O: (単位)
+  // 単位注記 (N-O, REF_R2〜noteRow まで縦結合 = 5行)
+  ws.mergeCells(REF_R2, REF_COL_START + 6, noteRow, REF_COL_START + 7);
   const unitCell = ws.getRow(REF_R2).getCell(REF_COL_START + 6);
   unitCell.value = "（単位=○時間：○分）";
   unitCell.font = { size: 8, italic: true };
@@ -521,12 +530,9 @@ function buildSheet(
   unitCell.alignment = { ...centerMiddle, wrapText: true };
   unitCell.border = thinAllBorders();
 
-  // 3行目: 28日 / 29日 / 30日 / 31日 列ヘッダー
-  const REF_R3 = LABOR_START + 2;
+  // 日数ラベル (J〜M, REF_R3)
   ws.getRow(REF_R3).height = 22;
-  const dayLabels = [28, 29, 30, 31];
   dayLabels.forEach((d, i) => {
-    ws.mergeCells(REF_R3, REF_COL_START + 2 + i, REF_R3, REF_COL_START + 2 + i);
     const c = ws.getRow(REF_R3).getCell(REF_COL_START + 2 + i);
     c.value = `${d}日`;
     c.font = { bold: true, size: 9, color: { argb: d === lastDay ? "FFFFFFFF" : "FF1F3864" } };
@@ -535,27 +541,32 @@ function buildSheet(
     c.border = thinAllBorders();
   });
 
-  // 4行目: 40 / 160:00 / 165:42 / 171:24 / 177:06
-  const REF_R4 = LABOR_START + 3;
+  // 週40 + 各日数の上限時間 (REF_R4)
   ws.getRow(REF_R4).height = 22;
-  // 週の法定労働時間 = 40（I-J は上の行で縦結合済み、この行も同セル）
+  ws.mergeCells(REF_R4, REF_COL_START, REF_R4, REF_COL_START + 1); // H-I 横結合
   const fortyCell = ws.getRow(REF_R4).getCell(REF_COL_START);
+  fortyCell.value = 40;
   fortyCell.font = { bold: true, size: 10 };
+  fortyCell.fill = solidFill(LEGAL_BG);
   fortyCell.alignment = centerMiddle;
-  // 各日数の上限時間
-  const refValues: Record<number, string> = { 28: "160:00", 29: "165:42", 30: "171:24", 31: "177:06" };
+  fortyCell.border = thinAllBorders();
+
   dayLabels.forEach((d, i) => {
     const c = ws.getRow(REF_R4).getCell(REF_COL_START + 2 + i);
     c.value = refValues[d];
-    c.font = { bold: d === lastDay, size: 10, color: { argb: d === lastDay ? "FF1F3864" : "FF000000" } };
+    c.font = { bold: d === lastDay, size: 10 };
     c.fill = solidFill(d === lastDay ? ACTIVE_BG : "FFFFFFFF");
     c.alignment = centerMiddle;
     c.border = thinAllBorders();
   });
 
-  // 週40の値セル（縦結合のI-J を持つ行の fortyCell は REF_R2 起点のマージなので REF_R4 には直接書けない）
-  // → fortyCell に直接書いてもマージ範囲内なので表示される
-  fortyCell.value = 40;
+  // REF_R4+1 と noteRow の H-M をスタイル付き空セルで埋める（N-O は縦結合済み）
+  [LABOR_START + 4, noteRow].forEach((rn) => {
+    ws.mergeCells(rn, REF_COL_START, rn, REF_COL_START + 5);
+    const emptyCell = ws.getRow(rn).getCell(REF_COL_START);
+    emptyCell.fill = solidFill(LEGAL_BG);
+    emptyCell.border = thinAllBorders();
+  });
 
   // ─── O列（備考列の余白）に有給残日数を表示 ────────────────────────────
   // 合計行のO・空行37・区分カウント行のOを縦結合して有給残日数バッジとして使用
