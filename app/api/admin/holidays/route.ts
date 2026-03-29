@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
   }
 
   // holiday_date を "YYYY-MM-DD" 文字列に正規化して返す
-  const normalized = (data ?? []).map((row) => ({
+  const normalized = (data ?? []).map((row: { id: string; holiday_date: string | Date }) => ({
     id: row.id,
     holiday_date:
       typeof row.holiday_date === "string"
