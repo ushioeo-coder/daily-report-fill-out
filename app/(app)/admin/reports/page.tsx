@@ -56,11 +56,6 @@ function getWeekday(dateStr: string): string {
   return WEEKDAYS[new Date(dateStr + "T00:00:00").getDay()];
 }
 
-function isWeekend(dateStr: string): boolean {
-  const day = new Date(dateStr + "T00:00:00").getDay();
-  return day === 0 || day === 6;
-}
-
 function isFutureDate(dateStr: string): boolean {
   const today = new Date().toISOString().split("T")[0];
   return dateStr > today;
@@ -104,6 +99,9 @@ export default function AdminReportsPage() {
   const [rawInputs, setRawInputs] = useState<Map<string, string>>(new Map());
   // 変更済みの日付を追跡
   const [dirtyDates, setDirtyDates] = useState<Set<string>>(new Set());
+
+  // 法定休日の日付セット
+  const [holidays, setHolidays] = useState<Set<string>>(new Set());
 
   // 選択中ユーザーの有給残日数
   const [paidLeave, setPaidLeave] = useState<{
@@ -160,6 +158,14 @@ export default function AdminReportsPage() {
     })();
   }, [selectedUserId]);
 
+  // 法定休日取得
+  const fetchHolidays = useCallback(async () => {
+    const res = await fetch(`/api/admin/holidays?year=${year}&month=${month}`, { cache: "no-store" });
+    if (!res.ok) return;
+    const data: { holiday_date: string }[] = await res.json();
+    setHolidays(new Set(data.map((h) => h.holiday_date)));
+  }, [year, month]);
+
   // 日報取得
   const fetchReports = useCallback(async () => {
     if (!selectedUserId) return;
@@ -176,6 +182,8 @@ export default function AdminReportsPage() {
     reportsRef.current = map;
     setReports(map);
   }, [from, to, selectedUserId]);
+
+  useEffect(() => { fetchHolidays(); }, [fetchHolidays]);
 
   useEffect(() => {
     fetchReports();
@@ -381,7 +389,7 @@ export default function AdminReportsPage() {
             {days.map((date) => {
               const report = reports.get(date);
               const weekday = getWeekday(date);
-              const weekend = isWeekend(date);
+              const isHoliday = holidays.has(date);
               const future = isFutureDate(date);
               const dayNum = date.split("-")[2];
               const dirty = dirtyDates.has(date);
@@ -389,12 +397,18 @@ export default function AdminReportsPage() {
               return (
                 <tr
                   key={date}
-                  className={`border-b ${dirty ? "bg-amber-50" : weekend ? "bg-gray-50 text-gray-400" : ""} ${future ? "opacity-50" : ""}`}
+                  className={`border-b ${dirty ? "bg-amber-50" : ""} ${future ? "opacity-50" : ""}`}
+                  style={!dirty && isHoliday ? { backgroundColor: "#dbeafe" } : undefined}
                 >
-                  <td className="px-2 py-1 whitespace-nowrap">{dayNum}</td>
-                  <td
-                    className={`px-2 py-1 whitespace-nowrap ${weekday === "日" ? "text-red-500" : weekday === "土" ? "text-blue-500" : ""}`}
-                  >
+                  {/* 日付: 法定休日は赤太字、それ以外は通常の濃さ */}
+                  <td className={`px-2 py-1 whitespace-nowrap font-medium ${isHoliday ? "text-red-600 font-bold" : "text-gray-900"}`}>{dayNum}</td>
+                  {/* 曜日: 法定休日>日曜>土曜>平日 の優先順位で色を決定 */}
+                  <td className={`px-2 py-1 whitespace-nowrap font-medium ${
+                    isHoliday ? "text-red-600 font-bold"
+                    : weekday === "日" ? "text-red-500"
+                    : weekday === "土" ? "text-blue-500"
+                    : "text-gray-900"
+                  }`}>
                     {weekday}
                   </td>
                   <td className="px-1 py-1">
