@@ -14,6 +14,21 @@ function minutesToExcelTime(minutes: number): number {
 
 const DAYS_JA = ["日", "月", "火", "水", "木", "金", "土"];
 
+/** 月の暦日数 → 法定労働時間上限（分）: 週40時間基準 */
+const STATUTORY_MINUTES_MAP: Record<28 | 29 | 30 | 31, number> = {
+  28: 9600,  // 160:00
+  29: 9942,  // 165:42
+  30: 10284, // 171:24
+  31: 10626, // 177:06
+};
+
+/** 分 → "H:MM" 形式テキスト（負の値も対応） */
+function formatMin(min: number): string {
+  const h = Math.floor(Math.abs(min) / 60);
+  const m = Math.abs(min) % 60;
+  return `${min < 0 ? "-" : ""}${h}:${String(m).padStart(2, "0")}`;
+}
+
 // ─── スタイル定数 ────────────────────────────────────────────────────────────
 const HEADER_BG   = "FF4472C4"; // 列ヘッダー：青
 const SUNDAY_BG   = "FFDBEAFE"; // 法定休日行：薄青（日報画面と統一）
@@ -394,6 +409,153 @@ function buildSheet(
     vc.alignment = centerMiddle;
     vc.border = thinAllBorders();
   });
+
+  // ─── 労働時間集計 + 法定労働時間参照テーブル ─────────────────────────
+  const LABOR_START = COUNT_ROW + 2; // 空行1行分あけて開始
+
+  ws.getRow(COUNT_ROW + 1).height = 6; // 空行
+
+  // 集計値
+  const totalWorkMin   = sumSite + sumTravel;
+  const legalMin       = STATUTORY_MINUTES_MAP[lastDay as 28 | 29 | 30 | 31] ?? 10626;
+  const excessMin      = totalWorkMin - legalMin;
+  const laborMin       = Math.max(excessMin, sumOvertime);
+
+  const LABOR_BG   = "FFF2F2F2"; // 集計パネル背景（薄グレー）
+  const LEGAL_BG   = "FFDCE6F1"; // 法定テーブル背景（薄青）
+  const LEGAL_HL   = "FF4472C4"; // 法定テーブルヘッダー（青）
+  const ACTIVE_BG  = "FFD6E4F0"; // 現在の月の列ハイライト
+
+  /** 労働時間集計パネル用セル設定 */
+  const setLaborCell = (
+    row: number, col: number, colEnd: number,
+    value: ExcelJS.CellValue,
+    opts?: { bold?: boolean; color?: string; fill?: string; align?: Partial<ExcelJS.Alignment> }
+  ) => {
+    if (col !== colEnd) ws.mergeCells(row, col, row, colEnd);
+    const cell = ws.getRow(row).getCell(col);
+    cell.value = value;
+    cell.fill = solidFill(opts?.fill ?? LABOR_BG);
+    cell.border = thinAllBorders();
+    cell.alignment = opts?.align ?? { horizontal: "left", vertical: "middle", indent: 1 };
+    if (opts?.bold || opts?.color) {
+      cell.font = { bold: opts?.bold ?? false, color: opts?.color ? { argb: opts.color } : undefined };
+    }
+  };
+
+  // ── 左側: 労働時間集計パネル (A-G列) ──────────────────────────────
+  // ヘッダー行
+  ws.mergeCells(LABOR_START, 1, LABOR_START, 7);
+  const lhCell = ws.getRow(LABOR_START).getCell(1);
+  lhCell.value = "労働時間集計";
+  lhCell.font = { bold: true, size: 10, color: { argb: "FF1F3864" } };
+  lhCell.fill = solidFill(COUNT_BG);
+  lhCell.alignment = centerMiddle;
+  lhCell.border = thinAllBorders();
+  ws.getRow(LABOR_START).height = 22;
+
+  const laborRows: [string, string, boolean][] = [
+    ["総労働時間",                formatMin(totalWorkMin), false],
+    ["法定労働時間",              formatMin(legalMin),     false],
+    ["総労働時間－法定労働時間",  formatMin(excessMin),    excessMin > 0],
+    ["労働時間（給与明細記載）",  formatMin(laborMin),     true],
+  ];
+
+  laborRows.forEach(([label, value, highlight], i) => {
+    const r = LABOR_START + 1 + i;
+    ws.getRow(r).height = 22;
+    setLaborCell(r, 1, 4, label, { bold: false });
+    setLaborCell(r, 5, 7, value, {
+      bold: highlight,
+      color: highlight ? "FF2E4057" : undefined,
+      align: centerMiddle,
+    });
+  });
+
+  // 注釈行
+  const noteRow = LABOR_START + 5;
+  ws.getRow(noteRow).height = 16;
+  ws.mergeCells(noteRow, 1, noteRow, 7);
+  const noteCell = ws.getRow(noteRow).getCell(1);
+  noteCell.value = `※ 総労働時間－法定労働時間 と 残業合計（${formatMin(sumOvertime)}）の多い方を採用`;
+  noteCell.font = { size: 8, italic: true, color: { argb: "FF666666" } };
+  noteCell.fill = solidFill("FFFFFFFF");
+  noteCell.alignment = { horizontal: "left", vertical: "middle", indent: 1 };
+
+  // ── 右側: 月の暦日数別 法定労働時間 参照テーブル (I-O列) ────────────
+  const REF_COL_START = 9; // I列
+
+  // ヘッダー行（LABOR_START）
+  ws.mergeCells(LABOR_START, REF_COL_START, LABOR_START, 15);
+  const refHeaderCell = ws.getRow(LABOR_START).getCell(REF_COL_START);
+  refHeaderCell.value = "対象期間が1か月の場合の上限時間";
+  refHeaderCell.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
+  refHeaderCell.fill = solidFill(LEGAL_HL);
+  refHeaderCell.alignment = centerMiddle;
+  refHeaderCell.border = thinAllBorders();
+
+  // 2行目: 週の法定労働時間 / 月の暦日数
+  const REF_R2 = LABOR_START + 1;
+  ws.getRow(REF_R2).height = 22;
+  ws.mergeCells(REF_R2, REF_COL_START, REF_R2 + 1, REF_COL_START + 1); // I-J 縦結合2行
+  const weekCell = ws.getRow(REF_R2).getCell(REF_COL_START);
+  weekCell.value = "週の法定\n労働時間";
+  weekCell.font = { bold: true, size: 9 };
+  weekCell.fill = solidFill(LEGAL_BG);
+  weekCell.alignment = { ...centerMiddle, wrapText: true };
+  weekCell.border = thinAllBorders();
+
+  ws.mergeCells(REF_R2, REF_COL_START + 2, REF_R2, REF_COL_START + 5); // K-N 月の暦日数
+  const daysHeaderCell = ws.getRow(REF_R2).getCell(REF_COL_START + 2);
+  daysHeaderCell.value = "月の暦日数";
+  daysHeaderCell.font = { bold: true, size: 9 };
+  daysHeaderCell.fill = solidFill(LEGAL_BG);
+  daysHeaderCell.alignment = centerMiddle;
+  daysHeaderCell.border = thinAllBorders();
+
+  ws.mergeCells(REF_R2, REF_COL_START + 6, REF_R2 + 1, REF_COL_START + 6); // O: (単位)
+  const unitCell = ws.getRow(REF_R2).getCell(REF_COL_START + 6);
+  unitCell.value = "（単位=○時間：○分）";
+  unitCell.font = { size: 8, italic: true };
+  unitCell.fill = solidFill(LEGAL_BG);
+  unitCell.alignment = { ...centerMiddle, wrapText: true };
+  unitCell.border = thinAllBorders();
+
+  // 3行目: 28日 / 29日 / 30日 / 31日 列ヘッダー
+  const REF_R3 = LABOR_START + 2;
+  ws.getRow(REF_R3).height = 22;
+  const dayLabels = [28, 29, 30, 31];
+  dayLabels.forEach((d, i) => {
+    ws.mergeCells(REF_R3, REF_COL_START + 2 + i, REF_R3, REF_COL_START + 2 + i);
+    const c = ws.getRow(REF_R3).getCell(REF_COL_START + 2 + i);
+    c.value = `${d}日`;
+    c.font = { bold: true, size: 9, color: { argb: d === lastDay ? "FFFFFFFF" : "FF1F3864" } };
+    c.fill = solidFill(d === lastDay ? LEGAL_HL : LEGAL_BG);
+    c.alignment = centerMiddle;
+    c.border = thinAllBorders();
+  });
+
+  // 4行目: 40 / 160:00 / 165:42 / 171:24 / 177:06
+  const REF_R4 = LABOR_START + 3;
+  ws.getRow(REF_R4).height = 22;
+  // 週の法定労働時間 = 40（I-J は上の行で縦結合済み、この行も同セル）
+  const fortyCell = ws.getRow(REF_R4).getCell(REF_COL_START);
+  fortyCell.font = { bold: true, size: 10 };
+  fortyCell.alignment = centerMiddle;
+  // 各日数の上限時間
+  const refValues: Record<number, string> = { 28: "160:00", 29: "165:42", 30: "171:24", 31: "177:06" };
+  dayLabels.forEach((d, i) => {
+    const c = ws.getRow(REF_R4).getCell(REF_COL_START + 2 + i);
+    c.value = refValues[d];
+    c.font = { bold: d === lastDay, size: 10, color: { argb: d === lastDay ? "FF1F3864" : "FF000000" } };
+    c.fill = solidFill(d === lastDay ? ACTIVE_BG : "FFFFFFFF");
+    c.alignment = centerMiddle;
+    c.border = thinAllBorders();
+  });
+
+  // 週40の値セル（縦結合のI-J を持つ行の fortyCell は REF_R2 起点のマージなので REF_R4 には直接書けない）
+  // → fortyCell に直接書いてもマージ範囲内なので表示される
+  fortyCell.value = 40;
 
   // ─── O列（備考列の余白）に有給残日数を表示 ────────────────────────────
   // 合計行のO・空行37・区分カウント行のOを縦結合して有給残日数バッジとして使用
