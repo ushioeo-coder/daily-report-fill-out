@@ -2,10 +2,17 @@
 // force-dynamic: キャッシュを使わず毎回DBから最新データを取得する
 export const dynamic = "force-dynamic";
 
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 import ReportsClient from "./ReportsClient";
 
 export default async function ReportsPage() {
+  // 管理者がこのページにアクセスした場合、管理者用の日報一覧にリダイレクト
+  const session = await getSession();
+  if (session?.role === "admin") {
+    redirect("/admin/reports");
+  }
   // 現在の年月を取得
   const today = new Date();
   const year = today.getFullYear();
