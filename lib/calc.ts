@@ -76,20 +76,23 @@ export function computeDerivedColumns(report: RawReport): DerivedColumns {
 
   // ========================================
   // 2. 移動・会社作業時間
+  //    行き（①出社→②現場到着）と帰り（④作業終了→⑥退勤）を独立して計算し、
+  //    片方だけ入力済みでも計算できるようにする
   // ========================================
   let travelMinutes = 0;
-  if (
-    report.start_time != null &&
-    report.site_arrival_time != null &&
-    report.work_end_time != null &&
-    report.end_time != null
-  ) {
-    const toSite = report.site_arrival_time - report.start_time;
-    const fromSite = report.end_time - report.work_end_time;
-    if (toSite >= 0 && fromSite >= 0) {
-      travelMinutes = toSite + fromSite;
-      result.travel_office_minutes = travelMinutes;
-    }
+  let toSite = 0;
+  let fromSite = 0;
+  if (report.start_time != null && report.site_arrival_time != null) {
+    const seg = report.site_arrival_time - report.start_time;
+    if (seg >= 0) toSite = seg;
+  }
+  if (report.work_end_time != null && report.end_time != null) {
+    const seg = report.end_time - report.work_end_time;
+    if (seg >= 0) fromSite = seg;
+  }
+  if (toSite > 0 || fromSite > 0) {
+    travelMinutes = toSite + fromSite;
+    result.travel_office_minutes = travelMinutes;
   }
 
   // ========================================
