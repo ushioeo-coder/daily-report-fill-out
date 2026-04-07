@@ -43,8 +43,10 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        const existingUser = user as { id: string; password_hash: string };
+
         // 2. 現在のパスワード確認
-        const isValid = await bcrypt.compare(old_password, user.password_hash).catch(() => false);
+        const isValid = await bcrypt.compare(old_password, existingUser.password_hash).catch(() => false);
         if (!isValid) {
             return NextResponse.json(
                 { error: "社員番号または現在のパスワードが正しくありません。" },
@@ -57,7 +59,7 @@ export async function POST(req: NextRequest) {
         const { error: updateError } = await supabase
             .from("users")
             .update({ password_hash: newPasswordHash })
-            .eq("id", user.id);
+            .eq("id", existingUser.id);
 
         if (updateError) {
             console.error("Change password error:", updateError);

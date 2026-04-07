@@ -107,7 +107,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json(data, { status: 201 });
+  const createdUser = data as {
+    id: string;
+    employee_id: string;
+    name: string;
+    role: string;
+  };
+
+  return NextResponse.json(createdUser, { status: 201 });
 }
 
 /**

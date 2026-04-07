@@ -37,8 +37,15 @@ export async function POST(req: NextRequest) {
   }
 
   // ユーザー不存在 or パスワード不一致を区別せず同一メッセージで返す (ユーザー列挙防止)
+  const loginUser = user as {
+    id: string;
+    employee_id: string;
+    name: string;
+    role: string;
+    password_hash: string;
+  } | null;
   const bcryptResult = !error && user
-    ? await bcrypt.compare(password, user.password_hash).catch(() => false)
+    ? await bcrypt.compare(password, loginUser!.password_hash).catch(() => false)
     : false;
   const isValid = !error && user && bcryptResult;
 
@@ -49,14 +56,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const token = await createSession(user.id);
+  const token = await createSession(loginUser!.id);
 
   const res = NextResponse.json({
     user: {
-      id: user.id,
-      employee_id: user.employee_id,
-      name: user.name,
-      role: user.role,
+      id: loginUser!.id,
+      employee_id: loginUser!.employee_id,
+      name: loginUser!.name,
+      role: loginUser!.role,
     },
   });
 

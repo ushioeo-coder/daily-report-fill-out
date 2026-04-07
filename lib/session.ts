@@ -61,7 +61,7 @@ export async function getSession(): Promise<SessionUser | null> {
     .update({ expires_at: newExpiry })
     .eq("token", token);
 
-  const user = session.users as unknown as SessionUser;
+  const user = (session as { users: SessionUser }).users;
   return {
     id: user.id,
     employee_id: user.employee_id,

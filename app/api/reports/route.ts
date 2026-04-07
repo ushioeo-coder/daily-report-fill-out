@@ -81,8 +81,12 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const reportRows = Array.isArray(reports)
+    ? (reports as (RawReport & Record<string, unknown>)[])
+    : [];
+
   // 全ユーザーに計算列を付与
-  const enriched = reports.map((r: RawReport & Record<string, unknown>) => ({
+  const enriched = reportRows.map((r: RawReport & Record<string, unknown>) => ({
     ...r,
     ...computeDerivedColumns(r),
   }));

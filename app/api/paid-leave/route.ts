@@ -58,7 +58,14 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const rawUsed = usedReports?.length ?? 0; // 全期間の有給取得日数（FIFO計算の入力）
+  const usedReportRows = Array.isArray(usedReports)
+    ? (usedReports as { id: string }[])
+    : [];
+  const grantRows = Array.isArray(grants)
+    ? (grants as { id: string; user_id: string; grant_date: string | Date; granted_days: number | string; expiry_date: string | Date; note?: string | null }[])
+    : [];
+
+  const rawUsed = usedReportRows.length; // 全期間の有給取得日数（FIFO計算の入力）
   const today = new Date().toISOString().split("T")[0];
 
   // ─── FIFO方式で付与ごとに消化日数を割り当て ───────────────────────────
@@ -72,8 +79,7 @@ export async function GET(req: NextRequest) {
   //
   // 例: 2025年度 10日付与(期限切れ)に5日消化 / 2026年度 10日付与(有効)
   //   → FIFOで2025年度バケツから5日引く → 2026年度バケツは10日まるまま → 残日数 10日
-  type GrantRow = { expiry_date: string | Date; granted_days: number | string };
-  const allGrants = [...(grants ?? [])] as GrantRow[];
+  const allGrants = [...grantRows];
   // 有効期限の古い順（昇順）でソート
   allGrants.sort(
     (a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime()
@@ -103,7 +109,7 @@ export async function GET(req: NextRequest) {
   const usedDays = totalGranted - remainingDays;
 
   return NextResponse.json({
-    grants: grants ?? [],
+    grants: grantRows,
     used_days: usedDays,
     total_granted: totalGranted,
     remaining_days: remainingDays,

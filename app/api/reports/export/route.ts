@@ -654,13 +654,16 @@ export async function POST(req: NextRequest) {
       .from("users")
       .select("id, name")
       .order("employee_id", { ascending: true });
-    if (error || !allUsers?.length) {
+    const exportUsers = Array.isArray(allUsers)
+      ? (allUsers as { id: string; name: string }[])
+      : [];
+    if (error || exportUsers.length === 0) {
       return NextResponse.json(
         { error: "ユーザーの取得に失敗しました。" },
         { status: 500 }
       );
     }
-    usersToExport = allUsers;
+    usersToExport = exportUsers;
   } else {
     const { data: user, error } = await supabase
       .from("users")
@@ -673,7 +676,7 @@ export async function POST(req: NextRequest) {
         { status: 404 }
       );
     }
-    usersToExport = [user];
+    usersToExport = [user as { id: string; name: string }];
   }
 
   // ─── 対象月の日報を一括取得 ───────────────────────────────────────────
@@ -704,7 +707,14 @@ export async function POST(req: NextRequest) {
   const userReportMap = new Map<string, Map<string, Record<string, unknown>>>();
   for (const uid of userIds) userReportMap.set(uid, new Map());
 
-  for (const r of reports ?? []) {
+  const reportRows = Array.isArray(reports)
+    ? (reports as {
+        user_id: string;
+        report_date: string | Date;
+        [key: string]: unknown;
+      }[])
+    : [];
+  for (const r of reportRows) {
     if (!userReportMap.has(r.user_id)) continue;
     const rd = r.report_date;
     const dateKey =
@@ -787,8 +797,11 @@ export async function POST(req: NextRequest) {
     .gte("holiday_date", holidayFrom)
     .lte("holiday_date", holidayTo);
 
+  const normalizedHolidayRows = Array.isArray(holidayRows)
+    ? (holidayRows as { holiday_date: string | Date }[])
+    : [];
   const holidaySet = new Set<string>(
-    (holidayRows ?? []).map((h: { holiday_date: string | Date }) => {
+    normalizedHolidayRows.map((h: { holiday_date: string | Date }) => {
       const d = h.holiday_date;
       return d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
     })

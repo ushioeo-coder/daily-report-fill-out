@@ -43,14 +43,20 @@ export async function GET() {
     );
   }
 
-  const rawUsed = usedReports?.length ?? 0; // 全期間の有給取得日数（FIFO計算の入力）
+  const usedReportRows = Array.isArray(usedReports)
+    ? (usedReports as { id: string }[])
+    : [];
+  const grantRows = Array.isArray(grants)
+    ? (grants as { expiry_date: string | Date; granted_days: number | string }[])
+    : [];
+
+  const rawUsed = usedReportRows.length; // 全期間の有給取得日数（FIFO計算の入力）
   const today = new Date().toISOString().split("T")[0];
 
   // ─── FIFO方式で付与ごとに消化日数を割り当て ───────────────────────────
   // 有効期限の古い付与から順に消化日数を割り当てる。
   // 期限切れ年度に消化した分は期限切れ付与から引かれ、有効年度の残日数は守られる。
-  type GrantRow = { expiry_date: string | Date; granted_days: number | string };
-  const allGrants = [...(grants ?? [])] as GrantRow[];
+  const allGrants = [...grantRows];
   allGrants.sort(
     (a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime()
   );

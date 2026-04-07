@@ -30,7 +30,11 @@ export default async function ReportsPage() {
   }
 
   // 当月分のみ抽出 & "YYYY-MM-DD" 形式に正規化
-  const initialHolidays: string[] = (data ?? [])
+  const holidayRows = Array.isArray(data)
+    ? (data as { holiday_date: string | Date }[])
+    : [];
+
+  const initialHolidays: string[] = holidayRows
     .map((row: { holiday_date: string | Date }) =>
       typeof row.holiday_date === "string"
         ? row.holiday_date.slice(0, 10)

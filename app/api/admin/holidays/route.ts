@@ -66,7 +66,11 @@ export async function GET(req: NextRequest) {
   }
 
   // holiday_date を "YYYY-MM-DD" 文字列に正規化して返す
-  const normalized = (data ?? []).map((row: { id: string; holiday_date: string | Date }) => ({
+  const holidayRows = Array.isArray(data)
+    ? (data as { id: string; holiday_date: string | Date }[])
+    : [];
+
+  const normalized = holidayRows.map((row: { id: string; holiday_date: string | Date }) => ({
     id: row.id,
     holiday_date:
       typeof row.holiday_date === "string"
@@ -124,13 +128,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const insertedHoliday = data as { id: string; holiday_date: string | Date };
+
   // holiday_date を "YYYY-MM-DD" 形式に正規化（pgはDATE型をDateオブジェクトで返すため）
   const normalized = {
-    id: data.id,
+    id: insertedHoliday.id,
     holiday_date:
-      typeof data.holiday_date === "string"
-        ? data.holiday_date.slice(0, 10)
-        : new Date(data.holiday_date).toISOString().slice(0, 10),
+      typeof insertedHoliday.holiday_date === "string"
+        ? insertedHoliday.holiday_date.slice(0, 10)
+        : new Date(insertedHoliday.holiday_date).toISOString().slice(0, 10),
   };
 
   // 201 Created: 新しいデータを作成したことを示すHTTPステータスコード
