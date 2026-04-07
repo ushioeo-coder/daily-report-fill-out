@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -98,9 +99,11 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow">
         <div className="mb-6 flex flex-col items-center">
-          <img
+          <Image
             src="/logo.png"
             alt="株式会社ＥＮ ロゴ"
+            width={320}
+            height={80}
             className="mb-2 max-h-20 w-auto object-contain"
           />
           <h1 className="text-center text-xl font-bold text-gray-800">

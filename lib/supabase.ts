@@ -50,7 +50,19 @@ interface JoinDef {
 
 type Operation = "select" | "insert" | "update" | "delete" | "upsert";
 
-class QueryBuilder implements PromiseLike<{ data: any; error: any }> {
+type QueryError = {
+  message: string;
+  code: string;
+  details?: string;
+  hint?: string;
+};
+
+type QueryResponse = {
+  data: unknown;
+  error: QueryError | null;
+};
+
+class QueryBuilder implements PromiseLike<QueryResponse> {
   private _table: string;
   private _op: Operation = "select";
   private _columns: string = "*";
@@ -165,16 +177,16 @@ class QueryBuilder implements PromiseLike<{ data: any; error: any }> {
 
   /* ---- execution ---- */
 
-  then<TResult1 = { data: any; error: any }, TResult2 = never>(
+  then<TResult1 = QueryResponse, TResult2 = never>(
     onfulfilled?:
-      | ((value: { data: any; error: any }) => TResult1 | PromiseLike<TResult1>)
+      | ((value: QueryResponse) => TResult1 | PromiseLike<TResult1>)
       | null,
-    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
   ): PromiseLike<TResult1 | TResult2> {
     return this._execute().then(onfulfilled, onrejected);
   }
 
-  private async _execute(): Promise<{ data: any; error: any }> {
+  private async _execute(): Promise<QueryResponse> {
     try {
       switch (this._op) {
         case "select":
@@ -190,14 +202,18 @@ class QueryBuilder implements PromiseLike<{ data: any; error: any }> {
         default:
           return { data: null, error: { message: "Unknown operation", code: "" } };
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      const details = typeof err === "object" && err !== null && "detail" in err ? String(err.detail) : "";
+      const hint = typeof err === "object" && err !== null && "hint" in err ? String(err.hint) : "";
+      const code = typeof err === "object" && err !== null && "code" in err ? String(err.code) : "";
       return {
         data: null,
         error: {
-          message: err.message ?? String(err),
-          code: err.code ?? "",
-          details: err.detail ?? "",
-          hint: err.hint ?? "",
+          message: error.message,
+          code,
+          details,
+          hint,
         },
       };
     }
@@ -236,7 +252,7 @@ class QueryBuilder implements PromiseLike<{ data: any; error: any }> {
 
   /* ---- per-operation executors ---- */
 
-  private async _execSelect(): Promise<{ data: any; error: any }> {
+  private async _execSelect(): Promise<QueryResponse> {
     let selectCols: string;
     let fromClause: string;
 
@@ -293,7 +309,7 @@ class QueryBuilder implements PromiseLike<{ data: any; error: any }> {
     return { data: result.rows, error: null };
   }
 
-  private async _execInsert(): Promise<{ data: any; error: any }> {
+  private async _execInsert(): Promise<QueryResponse> {
     const data = this._payload!;
     const keys = Object.keys(data);
     const values = Object.values(data);
@@ -310,7 +326,7 @@ class QueryBuilder implements PromiseLike<{ data: any; error: any }> {
     return { data: null, error: null };
   }
 
-  private async _execUpdate(): Promise<{ data: any; error: any }> {
+  private async _execUpdate(): Promise<QueryResponse> {
     if (this._filters.length === 0) {
       throw new Error("UPDATE requires at least one filter condition to prevent accidental full-table update");
     }
@@ -332,7 +348,7 @@ class QueryBuilder implements PromiseLike<{ data: any; error: any }> {
     return { data: null, error: null };
   }
 
-  private async _execDelete(): Promise<{ data: any; error: any }> {
+  private async _execDelete(): Promise<QueryResponse> {
     if (this._filters.length === 0) {
       throw new Error("DELETE requires at least one filter condition to prevent accidental full-table deletion");
     }
@@ -342,7 +358,7 @@ class QueryBuilder implements PromiseLike<{ data: any; error: any }> {
     return { data: null, error: null };
   }
 
-  private async _execUpsert(): Promise<{ data: any; error: any }> {
+  private async _execUpsert(): Promise<QueryResponse> {
     const data = this._payload!;
     const keys = Object.keys(data);
     const values = Object.values(data);

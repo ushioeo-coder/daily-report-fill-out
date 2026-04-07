@@ -155,7 +155,7 @@ export default function AdminReportsPage() {
         setSelectedUserId(data[0].id);
       }
     })();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // 選択ユーザーの有給残日数を取得
   useEffect(() => {
@@ -350,8 +350,10 @@ export default function AdminReportsPage() {
   const legalWorkMinutes = STATUTORY_MINUTES[legalDays];
   // 月次超過 = 総労働時間 - 法定労働時間（マイナスもそのまま表示）
   const monthlyExcess = totalWorkMinutes - legalWorkMinutes;
-  // 給与明細に記載する労働時間 = 月次超過 と 日次残業合計 の大きい方
+  // 時間外労働時間 = 月次超過 と 日次残業合計 の大きい方
   const laborMinutes = Math.max(monthlyExcess, sumOvertime);
+  // 労働時間 = 総労働時間 - 残業時間
+  const regularWorkMinutes = totalWorkMinutes - sumOvertime;
 
   return (
     <div>
@@ -661,12 +663,15 @@ export default function AdminReportsPage() {
                   {formatMinutes(monthlyExcess)}
                 </td>
               </tr>
-              <tr>
+              <tr className="border-b border-gray-100">
                 <td className="py-1.5 pr-4 font-medium text-gray-600 whitespace-nowrap">
-                  労働時間
-                  <span className="ml-1 text-gray-400">（給与明細記載）</span>
+                  時間外労働時間
                 </td>
                 <td className="py-1.5 font-bold text-blue-700">{formatMinutes(laborMinutes)}</td>
+              </tr>
+              <tr>
+                <td className="py-1.5 pr-4 font-medium text-gray-600 whitespace-nowrap">労働時間(総労働時間-残業時間)</td>
+                <td className="py-1.5 font-bold text-gray-900">{formatMinutes(regularWorkMinutes)}</td>
               </tr>
             </tbody>
           </table>

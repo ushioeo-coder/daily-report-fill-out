@@ -420,6 +420,7 @@ function buildSheet(
   const legalMin       = STATUTORY_MINUTES_MAP[lastDay as 28 | 29 | 30 | 31] ?? 10626;
   const excessMin      = totalWorkMin - legalMin;
   const laborMin       = Math.max(excessMin, sumOvertime);
+  const regularWorkMin = totalWorkMin - sumOvertime;
 
   const LABOR_BG   = "FFF2F2F2"; // 集計パネル背景（薄グレー）
   const LEGAL_BG   = "FFDCE6F1"; // 法定テーブル背景（薄青）
@@ -458,7 +459,8 @@ function buildSheet(
     ["総労働時間",                formatMin(totalWorkMin), false],
     ["法定労働時間",              formatMin(legalMin),     false],
     ["総労働時間－法定労働時間",  formatMin(excessMin),    excessMin > 0],
-    ["労働時間（給与明細記載）",  formatMin(laborMin),     true],
+    ["時間外労働時間",            formatMin(laborMin),     true],
+    ["労働時間(総労働時間-残業時間)", formatMin(regularWorkMin), false],
   ];
 
   laborRows.forEach(([label, value, highlight], i) => {
@@ -473,7 +475,7 @@ function buildSheet(
   });
 
   // 注釈行
-  const noteRow = LABOR_START + 5;
+  const noteRow = LABOR_START + 1 + laborRows.length;
   ws.getRow(noteRow).height = 16;
   ws.mergeCells(noteRow, 1, noteRow, 7);
   const noteCell = ws.getRow(noteRow).getCell(1);
@@ -800,7 +802,7 @@ export async function POST(req: NextRequest) {
 
   for (const user of usersToExport) {
     // Excel のシート名制約（31文字以内・使用不可文字を除去）に対応
-    let safeName = user.name.replace(/[\\/?*[\]:]/g, "_").slice(0, 31);
+    const safeName = user.name.replace(/[\\/?*[\]:]/g, "_").slice(0, 31);
     let finalName = safeName;
     let dup = 1;
     while (wb.getWorksheet(finalName)) {

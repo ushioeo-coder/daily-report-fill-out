@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { getSession } from "@/lib/session";
 import { LogoutButton } from "./logout-button";
 
@@ -16,9 +17,11 @@ export default async function AppLayout({
       <header className="border-b bg-white px-4 py-3 shadow-sm">
         <div className="mx-auto flex max-w-[90rem] items-center justify-between">
           <div className="flex items-center gap-4">
-            <img
+            <Image
               src="/logo.png"
               alt="株式会社ＥＮ ロゴ"
+              width={128}
+              height={32}
               className="h-8 w-auto max-w-[8rem] object-contain"
             />
             <h1 className="text-lg font-bold text-gray-800">
