@@ -152,11 +152,13 @@ export default function ReportsClient({ initialHolidays }: { initialHolidays: st
   useEffect(() => { fetchPaidLeave(); }, [fetchPaidLeave]);
 
   function prevMonth() {
+    if (dirtyDates.size > 0 && !confirm("未保存の変更があります。保存せずに移動しますか？")) return;
     if (month === 1) { setYear(year - 1); setMonth(12); }
     else { setMonth(month - 1); }
   }
 
   function nextMonth() {
+    if (dirtyDates.size > 0 && !confirm("未保存の変更があります。保存せずに移動しますか？")) return;
     if (month === 12) { setYear(year + 1); setMonth(1); }
     else { setMonth(month + 1); }
   }
