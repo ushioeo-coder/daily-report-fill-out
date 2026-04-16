@@ -3,9 +3,8 @@ import ExcelJS from "exceljs";
 import { getSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 import { computeDerivedColumns } from "@/lib/calc";
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { UUID_RE } from "@/lib/validation";
+import { centerMiddle, THIN_BORDER, solidFill, thinAllBorders } from "@/lib/excel-styles";
 
 /** 分 (0–2879) → Excel のシリアル時刻（日の端数）に変換。例: 480分(8:00) → 0.333… */
 function minutesToExcelTime(minutes: number): number {
@@ -37,20 +36,7 @@ const SUMMARY_BG  = "FFE2EFDA"; // 合計行：薄緑
 const COUNT_BG    = "FFD9E1F2"; // 区分カウント行：薄紫
 const GRAY_BG     = "FFD9D9D9"; // 当月外の日：グレー
 
-const centerMiddle: Partial<ExcelJS.Alignment> = {
-  horizontal: "center",
-  vertical: "middle",
-};
-const THIN_BORDER: Partial<ExcelJS.Border> = { style: "thin" };
 const MEDIUM_BORDER: Partial<ExcelJS.Border> = { style: "medium" };
-
-function solidFill(argb: string): ExcelJS.Fill {
-  return { type: "pattern", pattern: "solid", fgColor: { argb } };
-}
-
-function thinAllBorders(): Partial<ExcelJS.Borders> {
-  return { top: THIN_BORDER, left: THIN_BORDER, bottom: THIN_BORDER, right: THIN_BORDER };
-}
 
 /**
  * 1ユーザー分のワークシートを ExcelJS workbook に追加する。

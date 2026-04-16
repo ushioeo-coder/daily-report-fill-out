@@ -3,10 +3,9 @@ import { getSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 import { computeDerivedColumns, RawReport } from "@/lib/calc";
 import { MAX_TIME_MINUTES, ATTENDANCE_TYPES } from "@/lib/constants";
+import { UUID_RE } from "@/lib/validation";
 
 const DATE_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** 時間フィールド名の一覧 (0〜1439 の smallint) */
 const TIME_FIELDS = [

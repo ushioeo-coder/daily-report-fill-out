@@ -7,6 +7,8 @@ type User = {
   employee_id: string;
   name: string;
   role: string;
+  department?: string;
+  hire_date?: string | null;
 };
 
 export default function AdminUsersPage() {
@@ -15,16 +17,24 @@ export default function AdminUsersPage() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("user");
+  const [department, setDepartment] = useState("");
+  const [hireDate, setHireDate] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // パスワードリセット用ステート
   const [resetUserId, setResetUserId] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState("");
   const [resetError, setResetError] = useState("");
   const [resetMessage, setResetMessage] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
+
+  const [editUserId, setEditUserId] = useState<string | null>(null);
+  const [editDepartment, setEditDepartment] = useState("");
+  const [editHireDate, setEditHireDate] = useState("");
+  const [editError, setEditError] = useState("");
+  const [editMessage, setEditMessage] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
 
   async function fetchUsers() {
     const res = await fetch("/api/users");
@@ -50,6 +60,8 @@ export default function AdminUsersPage() {
           name,
           password,
           role,
+          department: department || undefined,
+          hire_date: hireDate || undefined,
         }),
       });
 
@@ -65,6 +77,8 @@ export default function AdminUsersPage() {
       setName("");
       setPassword("");
       setRole("user");
+      setDepartment("");
+      setHireDate("");
       await fetchUsers();
     } catch {
       setError("通信エラーが発生しました。");
@@ -122,11 +136,56 @@ export default function AdminUsersPage() {
 
       setResetMessage(`${user.name} のパスワードを変更しました。`);
       setResetPassword("");
-      setTimeout(() => setResetUserId(null), 3000); // 3秒後に閉じる
+      setTimeout(() => setResetUserId(null), 3000);
     } catch {
       setResetError("通信エラーが発生しました。");
     } finally {
       setResetLoading(false);
+    }
+  }
+
+  function openEditPanel(user: User) {
+    if (editUserId === user.id) {
+      setEditUserId(null);
+      return;
+    }
+    setEditUserId(user.id);
+    setEditDepartment(user.department || "");
+    setEditHireDate(user.hire_date ? String(user.hire_date).slice(0, 10) : "");
+    setEditError("");
+    setEditMessage("");
+  }
+
+  async function handleEditSave(user: User) {
+    setEditError("");
+    setEditMessage("");
+    setEditLoading(true);
+
+    try {
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          department: editDepartment,
+          hire_date: editHireDate || null,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setEditError(data.error ?? "更新に失敗しました。");
+        return;
+      }
+
+      setEditMessage("更新しました。");
+      await fetchUsers();
+      setTimeout(() => setEditUserId(null), 2000);
+    } catch {
+      setEditError("通信エラーが発生しました。");
+    } finally {
+      setEditLoading(false);
     }
   }
 
@@ -184,6 +243,27 @@ export default function AdminUsersPage() {
               </select>
             </div>
           </div>
+          <div className="flex flex-wrap gap-3">
+            <div>
+              <label className="block text-xs text-gray-600">所属部署</label>
+              <input
+                type="text"
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                placeholder="工事部"
+                className="mt-1 rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600">入社日</label>
+              <input
+                type="date"
+                value={hireDate}
+                onChange={(e) => setHireDate(e.target.value)}
+                className="mt-1 rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-900"
+              />
+            </div>
+          </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
           {message && <p className="text-sm text-green-600">{message}</p>}
@@ -205,6 +285,8 @@ export default function AdminUsersPage() {
             <tr className="border-b bg-gray-50 text-left text-gray-600">
               <th className="px-4 py-2">社員番号</th>
               <th className="px-4 py-2">氏名</th>
+              <th className="px-4 py-2">所属</th>
+              <th className="px-4 py-2">入社日</th>
               <th className="px-4 py-2">権限</th>
               <th className="px-4 py-2"></th>
             </tr>
@@ -215,11 +297,25 @@ export default function AdminUsersPage() {
                 <td className="px-4 py-2 text-gray-900">{u.employee_id}</td>
                 <td className="px-4 py-2 text-gray-900">{u.name}</td>
                 <td className="px-4 py-2 text-gray-600">
+                  {u.department || "-"}
+                </td>
+                <td className="px-4 py-2 text-gray-600">
+                  {u.hire_date
+                    ? new Date(u.hire_date).toLocaleDateString("ja-JP")
+                    : "-"}
+                </td>
+                <td className="px-4 py-2 text-gray-600">
                   {u.role === "admin" ? "管理者" : "一般"}
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex flex-col gap-2">
                     <div className="flex gap-2">
+                      <button
+                        onClick={() => openEditPanel(u)}
+                        className="rounded border border-green-300 px-3 py-1 text-xs text-green-600 hover:bg-green-50"
+                      >
+                        {editUserId === u.id ? "閉じる" : "編集"}
+                      </button>
                       <button
                         onClick={() => {
                           setResetUserId(resetUserId === u.id ? null : u.id);
@@ -238,6 +334,56 @@ export default function AdminUsersPage() {
                         削除
                       </button>
                     </div>
+                    {/* 編集パネル */}
+                    {editUserId === u.id && (
+                      <div className="mt-2 flex flex-col gap-2 rounded bg-gray-50 p-3 shadow-inner">
+                        <div className="flex flex-wrap gap-3">
+                          <div>
+                            <label className="text-xs text-gray-600">
+                              所属部署
+                            </label>
+                            <input
+                              type="text"
+                              value={editDepartment}
+                              onChange={(e) =>
+                                setEditDepartment(e.target.value)
+                              }
+                              placeholder="工事部"
+                              className="mt-1 block w-40 rounded border px-2 py-1 text-sm text-gray-900"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-600">
+                              入社日
+                            </label>
+                            <input
+                              type="date"
+                              value={editHireDate}
+                              onChange={(e) => setEditHireDate(e.target.value)}
+                              className="mt-1 block rounded border px-2 py-1 text-sm text-gray-900"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleEditSave(u)}
+                            disabled={editLoading}
+                            className="rounded bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 disabled:opacity-50"
+                          >
+                            {editLoading ? "更新中..." : "保存"}
+                          </button>
+                          {editError && (
+                            <p className="text-xs text-red-600">{editError}</p>
+                          )}
+                          {editMessage && (
+                            <p className="text-xs text-green-600">
+                              {editMessage}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {/* パスワードリセットパネル */}
                     {resetUserId === u.id && (
                       <div className="mt-2 flex flex-col gap-2 rounded bg-gray-50 p-3 shadow-inner">
                         <label className="text-xs text-gray-600">

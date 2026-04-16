@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
-
-// UUID形式チェック用の正規表現（レジェックス）
-// 例: "550e8400-e29b-41d4-a716-446655440000" のような形式
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { UUID_RE } from "@/lib/validation";
 
 // 日付形式チェック用の正規表現
 // 例: "2026-03-17" のような YYYY-MM-DD 形式
